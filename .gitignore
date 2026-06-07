@@ -1,0 +1,54 @@
+# Dependencies / build output
+node_modules/
+build/
+out/
+dist/
+dist-electron/
+*.tsbuildinfo
+
+# Lockfiles from other package managers (pnpm only)
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+
+# Downloaded / bundled binaries (fetched at runtime, not redistributed)
+resources/bundled/winetricks
+resources/bundled/d3dmetal/
+resources/bundled/wine/
+
+# macOS
+.DS_Store
+
+# Editor / IDE / AI tooling
+.vscode/
+.idea/
+.cursor/
+.agents/
+.claude/
+CLAUDE.md
+_bmad/
+_bmad-output/
+
+# Legacy Python prototype (not part of the Electron app)
+/kalimotxo/
+/legacy/
+run.py
+setup_macos.py
+requirements.txt
+pyproject.toml
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Vendored reference (not redistributed)
+HeroicGamesLauncher/
+
+# Internal working notes (not for the public repo)
+docs/NOCHE-2026-06-04-informe.md
+docs/project-context.md
+
+# Logs
+*.log
