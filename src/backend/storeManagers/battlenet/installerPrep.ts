@@ -22,7 +22,7 @@ function logInstall(line: string, logPath?: string): void {
   if (logPath) appendFileSync(logPath, line + '\n')
 }
 
-/** Locale enUS evita cuelgues del Agent en 45% (foros Blizzard/Lutris). */
+/** enUS locale avoids Agent hangs at 45% (Blizzard/Lutris forums). */
 export function applyBattleNetLocaleRegistry(bottleName = BATTLENET_BOTTLE): void {
   const wine = getWineBinary(bottleName)
   const env = buildEnv(bottleName)
@@ -53,7 +53,7 @@ export function applyAgentGdiRendererRegistry(bottleName = BATTLENET_BOTTLE): vo
   })
 }
 
-/** Mata instaladores duplicados (BLZBNTBTS0000000B: otra instancia en ejecución). */
+/** Kills duplicate installer processes (BLZBNTBTS0000000B: another instance running). */
 export function stopBlizzardSetupProcesses(): void {
   for (const pattern of [
     'Battle.net-Setup',
@@ -73,31 +73,31 @@ export function stopBlizzardSetupProcesses(): void {
   }
 }
 
-/** Copia Agent.9464 (7 MB) sobre los stubs que el instalador ejecuta en el 45%. */
+/** Copies Agent.9464 (7 MB) over the stubs the installer runs at 45%. */
 export function repairAgentLayoutForInstall(
   bottleName = BATTLENET_BOTTLE,
   logPath?: string
 ): boolean {
   const fixed = ensureRootAgentExe(bottleName)
   if (fixed) {
-    logInstall(`Agent reparado: ${fixed} (${statSync(fixed).size} bytes)`, logPath)
+    logInstall(`Agent repaired: ${fixed} (${statSync(fixed).size} bytes)`, logPath)
     return true
   }
   const found = findAgentExe(bottleName)
   if (found) {
-    logInstall(`Agent versionado encontrado pero no se pudo copiar: ${found}`, logPath)
+    logInstall(`Versioned Agent found but could not be copied: ${found}`, logPath)
   }
   return false
 }
 
 /**
- * Antes del instalador: Win10 + enUS + GDI para Agent.
+ * Before the installer: Win10 + enUS + GDI for Agent.
  */
 export function prepareBlizzardInstallerPrefix(
   bottleName = BATTLENET_BOTTLE,
   logPath?: string
 ): void {
-  logInstall('Preparando prefix para instalador Blizzard…', logPath)
+  logInstall('Preparing prefix for Blizzard installer...', logPath)
   applyBattleNetWindowsRegistry(bottleName, { force: true })
   applyBattleNetLocaleRegistry(bottleName)
   applyAgentGdiRendererRegistry(bottleName)
@@ -120,14 +120,14 @@ export async function preWarmAgent(
   const agentExe = ensureRootAgentExe(bottleName) ?? findAgentExe(bottleName)
 
   if (!agentExe) {
-    logInstall('pre-warm: Agent.exe no encontrado, el instalador lo descargará', logPath)
+    logInstall('pre-warm: Agent.exe not found, installer will download it', logPath)
     return { port: null, agentDatPath: null }
   }
 
   stopBattleNetAgentProcesses()
   await new Promise((r) => setTimeout(r, 1500))
 
-  logInstall(`pre-warm: Arrancando Agent.exe…`, logPath)
+  logInstall(`pre-warm: Starting Agent.exe...`, logPath)
   runExe(bottleName, agentExe, { battleNetEnv: true, logPath })
 
   const timeoutMs = 90_000
@@ -142,32 +142,32 @@ export async function preWarmAgent(
         const parsed = parseInt(raw, 10)
         if (parsed > 0 && parsed < 65536) {
           port = parsed
-          logInstall(`pre-warm: Agent listo en puerto ${port} (${Math.round((Date.now() - started) / 1000)}s)`, logPath)
+          logInstall(`pre-warm: Agent ready on port ${port} (${Math.round((Date.now() - started) / 1000)}s)`, logPath)
           return { port, agentDatPath }
         }
       }
     } catch { /* retry */ }
 
     if (!isBattleNetAgentProcessRunning(bottleName) && Date.now() - started > 20_000) {
-      logInstall('pre-warm: Agent murió — reintentando…', logPath)
+      logInstall('pre-warm: Agent died — retrying...', logPath)
       runExe(bottleName, agentExe, { battleNetEnv: true, logPath })
     }
   }
 
-  logInstall('pre-warm: Timeout esperando Agent.dat (90s) — el instalador intentará por su cuenta', logPath)
+  logInstall('pre-warm: Timeout waiting for Agent.dat (90s) — installer will try on its own', logPath)
   return { port: null, agentDatPath: null }
 }
 
 let installerWatchInterval: ReturnType<typeof setInterval> | null = null
 
-/** Mientras el instalador corre: despierta el Agent sin matar Battle.net-Setup.exe. */
+/** While the installer is running: wakes the Agent without killing Battle.net-Setup.exe. */
 export function startInstallerAgentWatchdog(
   bottleName = BATTLENET_BOTTLE,
   logPath?: string
 ): void {
   stopInstallerAgentWatchdog()
   let ticks = 0
-  logInstall('Asistente instalación: vigilando Agent (45%)…', logPath)
+  logInstall('Install watchdog: monitoring Agent (45%)...', logPath)
 
   installerWatchInterval = setInterval(() => {
     void (async () => {
@@ -210,7 +210,7 @@ export function stopInstallerAgentWatchdog(): void {
   }
 }
 
-/** Tamaño total de Agent/ para diagnosticar progreso en logs. */
+/** Total Agent/ folder size for diagnosing install progress in logs. */
 export function agentInstallBytes(bottleName = BATTLENET_BOTTLE): number {
   const pd = programDataBattleNet(bottleName)
   let total = 0

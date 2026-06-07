@@ -57,8 +57,8 @@ export function verifyWinePrefix(
   if (r.status !== 0) {
     return {
       ok: false,
-      message: (r.stderr || r.stdout || 'wineboot --init falló').slice(0, 300)
+      message: (r.stderr || r.stdout || 'wineboot --init failed').slice(0, 300)
     }
   }
-  return { ok: true, message: 'Prefix Wine inicializado' }
+  return { ok: true, message: 'Wine prefix initialized' }
 }

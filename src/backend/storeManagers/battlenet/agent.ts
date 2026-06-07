@@ -16,21 +16,21 @@ import { runExe, stopWineProcesses } from '../../launcher/wineRunner'
 import { BATTLENET_BOTTLE } from './constants'
 
 const AGENT_VERSION_RE = /^Agent\.\d+$/i
-/** Agent real ~7 MB; stub en raíz suele ser ~600–650 KB. */
+/** Real Agent ~7 MB; root stub is typically ~600-650 KB. */
 const MIN_AGENT_EXE_BYTES = 2_000_000
 
 export type AgentMaintenanceOptions = {
-  /** Borra ProgramData/Battle.net entero (caché login + Agent). Usar en Reparar. */
+  /** Wipe all of ProgramData/Battle.net (login cache + Agent). Use for deep repair. */
   deep?: boolean
-  /** Arranca Agent.exe y espera (solo diagnóstico manual). */
+  /** Start Agent.exe and wait (manual diagnostics only). */
   wake?: boolean
-  /** Jugar: solo limpia versiones rotas; no toca product.db ni arranca Agent. */
+  /** Launch only: clean broken versions, do not touch product.db or start Agent. */
   launchOnly?: boolean
-  /** Jugar: prune + product.db + Agent.9464… antes de Battle.net.exe (evita BLZBNTBNA00000005). */
+  /** Launch prep: prune + product.db + Agent.9464 before Battle.net.exe (avoids BLZBNTBNA00000005). */
   prepareLaunch?: boolean
-  /** Reinicia Agent sin matar Battle.net.exe (ventana ya abierta con error). */
+  /** Restart Agent without killing Battle.net.exe (window already open with error). */
   wakeOnly?: boolean
-  /** Instalador Blizzard en curso: solo Agent, no wineserver -w ni matar Setup.exe. */
+  /** Blizzard installer running: Agent only, no wineserver -w or killing Setup.exe. */
   installAssist?: boolean
   logPath?: string
   log?: (line: string) => void
@@ -88,7 +88,7 @@ function collectVersionedAgentExes(...baseDirs: string[]): string[] {
 export function findAgentExe(bottleName = BATTLENET_BOTTLE): string | null {
   const pd = programDataBattleNet(bottleName)
   const agentRoot = join(pd, 'Agent')
-  // El instalador de Blizzard deja Agent.9464 en ProgramData/Battle.net/, no solo en Agent/.
+  // Blizzard installer drops Agent.9464 in ProgramData/Battle.net/, not only in Agent/.
   const versionExes = collectVersionedAgentExes(agentRoot, pd)
 
   if (versionExes.length) {
@@ -109,11 +109,7 @@ export function findAgentExe(bottleName = BATTLENET_BOTTLE): string | null {
   return null
 }
 
-/**
- * Battle.net suele invocar ProgramData/.../Agent/Agent.exe (raíz).
- * Si solo existe el stub (~600 KB), copia el Agent.XXXX real (~7 MB) a la ruta raíz.
- */
-/** Rutas que Battle.net / el instalador suelen ejecutar (stub ~600 KB vs real ~7 MB). */
+/** Paths that Battle.net / the installer typically execute (stub ~600 KB vs real ~7 MB). */
 export function battleNetAgentLaunchPaths(bottleName = BATTLENET_BOTTLE): string[] {
   const pd = programDataBattleNet(bottleName)
   const agentRoot = join(pd, 'Agent')
@@ -149,7 +145,7 @@ export function ensureRootAgentExe(bottleName = BATTLENET_BOTTLE): string | null
   }
 }
 
-/** @deprecated Usar ensureRootAgentExe */
+/** @deprecated Use ensureRootAgentExe */
 export function removeRootAgentStubIfVersioned(bottleName = BATTLENET_BOTTLE): boolean {
   const before = join(programDataBattleNet(bottleName), 'Agent', 'Agent.exe')
   const sizeBefore = existsSync(before) ? statSync(before).size : 0
@@ -237,7 +233,7 @@ export function pruneBrokenAgentVersions(bottleName = BATTLENET_BOTTLE): string[
   ]
 }
 
-/** Si hay varias versiones Agent.XXXX, quita la más nueva (suele ser la rota en Wine). */
+/** If multiple Agent.XXXX versions exist, remove the newest (typically the broken one under Wine). */
 function pruneNewestAgentVersionInDir(baseDir: string): string | null {
   if (!existsSync(baseDir)) return null
   let versions: string[] = []
@@ -272,7 +268,7 @@ export function isAgentLaunchReady(bottleName = BATTLENET_BOTTLE): boolean {
   return findAgentExe(bottleName) !== null
 }
 
-/** Espera a que Battle.net descargue un Agent.XXXX válido tras arrancar el stub. */
+/** Waits for Battle.net to download a valid Agent.XXXX after starting the stub. */
 export async function waitForValidAgent(
   bottleName = BATTLENET_BOTTLE,
   options?: { timeoutMs?: number; log?: (line: string) => void }
@@ -298,7 +294,7 @@ export function resetBattleNetAgentProductDb(bottleName = BATTLENET_BOTTLE): boo
   }
 }
 
-/** Limpia caché/login sin borrar Agent.XXXX ni el cliente en Program Files. */
+/** Clears cache/login without removing Agent.XXXX or the client in Program Files. */
 export function resetBattleNetProgramData(bottleName = BATTLENET_BOTTLE): boolean {
   const root = programDataBattleNet(bottleName)
   if (!existsSync(root)) return false
@@ -320,8 +316,8 @@ export function resetBattleNetProgramData(bottleName = BATTLENET_BOTTLE): boolea
 }
 
 /**
- * Mantenimiento automático del Agent (sin tocar carpetas a mano).
- * Jugar: light + wake. Reparar: deep (ProgramData) + prune.
+ * Automated Agent maintenance (no manual folder edits needed).
+ * Launch: light + wake. Repair: deep (ProgramData) + prune.
  */
 export async function maintainBattleNetAgent(
   bottleName = BATTLENET_BOTTLE,
@@ -336,9 +332,9 @@ export async function maintainBattleNetAgent(
   }
 
   if (options.prepareLaunch) {
-    logLine(options, 'Preparando Agent Battle.net (BLZBNTBNA00000005)…')
+    logLine(options, 'Preparing Battle.net Agent (BLZBNTBNA00000005)...')
   } else if (!options.launchOnly && !options.wakeOnly) {
-    logLine(options, 'Mantenimiento Agent Battle.net…')
+    logLine(options, 'Battle.net Agent maintenance...')
   }
   if (options.installAssist) {
     stopBattleNetAgentProcesses()
@@ -347,20 +343,20 @@ export async function maintainBattleNetAgent(
     stopBattleNetAgentProcesses()
     await new Promise((r) => setTimeout(r, 1500))
   } else {
-    // Reparar profundo: esperar cierre limpio. Jugar: solo -k para no colgar si el cliente sigue abierto.
+    // Deep repair: wait for clean shutdown. Launch: -k only to avoid hanging if client is still open.
     stopWineProcesses(bottleName, { wait: Boolean(options.deep) })
   }
 
   if (options.deep) {
     result.programData = resetBattleNetProgramData(bottleName)
     if (result.programData) {
-      logLine(options, 'Caché ProgramData/Battle.net eliminada (reparación profunda)')
+      logLine(options, 'ProgramData/Battle.net cache cleared (deep repair)')
     }
   }
 
   result.pruned = pruneBrokenAgentVersions(bottleName)
   if (result.pruned.length) {
-    logLine(options, `Agent: versiones rotas eliminadas: ${result.pruned.join(', ')}`)
+    logLine(options, `Agent: removed broken versions: ${result.pruned.join(', ')}`)
   }
 
   if (!options.installAssist) {
@@ -369,7 +365,7 @@ export async function maintainBattleNetAgent(
   if (result.removedNewest) {
     logLine(
       options,
-      `Agent: quitada versión nueva sospechosa (${result.removedNewest}); Battle.net pedirá actualizar`
+      `Agent: removed suspect newest version (${result.removedNewest}); Battle.net will prompt to update`
     )
   }
 
@@ -385,7 +381,7 @@ export async function maintainBattleNetAgent(
   if (shouldResetDb && !options.launchOnly) {
     result.productDb = resetBattleNetAgentProductDb(bottleName)
     if (result.productDb) {
-      logLine(options, 'Agent: product.db reiniciado')
+      logLine(options, 'Agent: product.db reset')
     }
   }
 
@@ -397,7 +393,7 @@ export async function maintainBattleNetAgent(
     const rootStub = join(agentRoot, 'Agent.exe')
 
     if (!agent && existsSync(rootStub)) {
-      logLine(options, 'Agent stub: iniciando actualizador de Blizzard…')
+      logLine(options, 'Agent stub: starting Blizzard updater...')
       runExe(bottleName, rootStub, { battleNetEnv: true, logPath: options.logPath })
       agent = await waitForValidAgent(bottleName, {
         timeoutMs: 90_000,
@@ -405,19 +401,19 @@ export async function maintainBattleNetAgent(
       })
       if (agent) {
         ensureRootAgentExe(bottleName)
-        logLine(options, 'Agent descargado correctamente')
+        logLine(options, 'Agent downloaded successfully')
       }
     }
 
     if (!agent) {
-      logLine(options, 'Agent.exe no encontrado — completa la instalación o pulsa Reparar')
+      logLine(options, 'Agent.exe not found — complete the installation or click Repair')
     } else {
       runExe(bottleName, agent, { battleNetEnv: true, logPath: options.logPath })
-      logLine(options, 'Agent.exe iniciado, esperando…')
+      logLine(options, 'Agent.exe started, waiting...')
       const waitMs = options.prepareLaunch ? 12_000 : options.installAssist ? 6_000 : 4_000
       await new Promise((r) => setTimeout(r, waitMs))
       if (!isBattleNetAgentProcessRunning(bottleName) && options.prepareLaunch) {
-        logLine(options, 'Esperando Agent tras arranque…')
+        logLine(options, 'Waiting for Agent after start...')
         const ready = await waitForValidAgent(bottleName, {
           timeoutMs: 60_000,
           log: (line) => logLine(options, line)
@@ -425,9 +421,9 @@ export async function maintainBattleNetAgent(
         if (ready) ensureRootAgentExe(bottleName)
       }
       if (isBattleNetAgentProcessRunning(bottleName)) {
-        logLine(options, 'Agent en ejecución')
+        logLine(options, 'Agent running')
       } else {
-        logLine(options, 'Aviso: Agent no detectado tras el arranque — se reintentará al abrir')
+        logLine(options, 'Warning: Agent not detected after start — will retry on open')
       }
       result.agentWake = ensureRootAgentExe(bottleName) ?? agent
     }
@@ -436,7 +432,7 @@ export async function maintainBattleNetAgent(
   return result
 }
 
-/** @deprecated Usar maintainBattleNetAgent */
+/** @deprecated Use maintainBattleNetAgent */
 export function repairBattleNetAgent(bottleName = BATTLENET_BOTTLE) {
   stopWineProcesses(bottleName, { wait: true })
   return {
@@ -446,14 +442,14 @@ export function repairBattleNetAgent(bottleName = BATTLENET_BOTTLE) {
   }
 }
 
-/** @deprecated Usar maintainBattleNetAgent({ wake: true }) */
+/** @deprecated Use maintainBattleNetAgent({ wake: true }) */
 export async function wakeBattleNetAgent(
   bottleName = BATTLENET_BOTTLE,
   logPath?: string
 ): Promise<{ ok: boolean; message: string }> {
   const r = await maintainBattleNetAgent(bottleName, { wake: true, logPath })
   if (!r.agentWake && !findAgentExe(bottleName)) {
-    return { ok: false, message: 'Agent.exe no encontrado' }
+    return { ok: false, message: 'Agent.exe not found' }
   }
-  return { ok: true, message: 'Agent preparado automáticamente' }
+  return { ok: true, message: 'Agent prepared automatically' }
 }

@@ -28,29 +28,29 @@ async function ensureVcRedistCache(log: (m: string) => void): Promise<void> {
   if (existsSync(dest)) return
   const alt = join(CACHE_DIR, 'vc_redist_2015.x86.exe')
   if (existsSync(alt)) return
-  log('Descargando Visual C++ Redistributable (UCRT)…')
+  log('Downloading Visual C++ Redistributable (UCRT)…')
   try {
     const res = await fetch(VC_REDIST_URL, { redirect: 'follow' })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 1_000_000) throw new Error('archivo demasiado pequeño')
+    if (buf.length < 1_000_000) throw new Error('file too small')
     const { writeFileSync, mkdirSync } = await import('fs')
     mkdirSync(CACHE_DIR, { recursive: true })
     writeFileSync(dest, buf)
-    log('vc_redist.x86.exe en caché')
+    log('vc_redist.x86.exe cached')
   } catch (e) {
     log(
-      `Aviso: no se pudo descargar vc_redist (${e instanceof Error ? e.message : String(e)}); winetricks intentará obtenerlo`
+      `Warning: could not download vc_redist (${e instanceof Error ? e.message : String(e)}); winetricks will try to fetch it`
     )
   }
 }
 
-/** cabextract (+ GStreamer si es posible) sin pedir pasos manuales. */
+/** cabextract (+ GStreamer if possible) without requiring manual steps. */
 export async function ensureToolsForWinetricks(
   log: (m: string) => void = logInfo
 ): Promise<[boolean, string]> {
   if (!cabextractAvailable()) {
-    log('Obteniendo cabextract…')
+    log('Fetching cabextract…')
     const sys = await installSystemDependencies(log)
     if (!sys.success && !cabextractAvailable()) {
       const { ensureCabextract } = await import('./systemInstaller')
@@ -60,50 +60,50 @@ export async function ensureToolsForWinetricks(
   }
 
   if (!cabextractAvailable()) {
-    return [false, 'No se pudo instalar cabextract automáticamente']
+    return [false, 'Could not install cabextract automatically']
   }
 
   if (!gstreamerAvailable()) {
-    log('Comprobando GStreamer (audio Wine)…')
+    log('Checking GStreamer (Wine audio)…')
     const { ensureGstreamer, isHomebrewInstalled, installHomebrew } = await import(
       './systemInstaller'
     )
     if (!(await isHomebrewInstalled())) {
-      log('Instalando Homebrew para GStreamer (macOS puede pedir contraseña una vez)…')
+      log('Installing Homebrew for GStreamer (macOS may ask for your password once)…')
       const [brewOk, brewMsg] = await installHomebrew(log)
       if (!brewOk) {
-        log(`Aviso: ${brewMsg} — se continúa solo con cabextract`)
+        log(`Warning: ${brewMsg} — continuing with cabextract only`)
       }
     }
     const [gstOk, gstMsg] = await ensureGstreamer(log)
     if (!gstOk) {
-      log(`Aviso GStreamer: ${gstMsg} — las DLL VC++/UCRT pueden instalarse igual`)
+      log(`GStreamer warning: ${gstMsg} — VC++/UCRT DLLs can still be installed`)
     }
   }
 
   await ensureVcRedistCache(log)
-  return [true, 'Herramientas del sistema listas']
+  return [true, 'System tools ready']
 }
 
-/** Wine, DXMT, winetricks en ~/.kalimotxo o ~/.macbattlenet. */
+/** Wine, DXMT, winetricks in ~/.kalimotxo or ~/.macbattlenet. */
 export async function ensureRuntimeReady(
   log: (m: string) => void = logInfo
 ): Promise<[boolean, string]> {
   const [toolsOk, toolsMsg] = await ensureToolsForWinetricks(log)
   if (!toolsOk) return [false, toolsMsg]
 
-  if (isSetupComplete()) return [true, 'Runtime Kalimotxo listo']
+  if (isSetupComplete()) return [true, 'Kalimotxo runtime ready']
 
-  log('Descargando Wine, DXMT y winetricks (primera vez, puede tardar varios minutos)…')
+  log('Downloading Wine, DXMT and winetricks (first run, may take several minutes)…')
   const rt = await downloadAll()
   if (!rt.success) return [false, rt.message]
   if (!isSetupComplete()) {
-    return [false, 'Runtime incompleto tras la descarga — reintenta en unos segundos']
+    return [false, 'Incomplete runtime after download — retry in a few seconds']
   }
   return [true, rt.message]
 }
 
-/** Botella Battle.net + DLLs VC++/UCRT en syswow64. */
+/** Battle.net bottle + VC++/UCRT DLLs in syswow64. */
 export async function ensureBattleNetBottleDeps(
   log: (m: string) => void = logInfo
 ): Promise<[boolean, string]> {
@@ -111,7 +111,7 @@ export async function ensureBattleNetBottleDeps(
   if (!rtOk) return [false, rtMsg]
 
   if (!listBottles().some((b) => b.name === BATTLENET_BOTTLE)) {
-    log('Creando botella Battle.net…')
+    log('Creating Battle.net bottle…')
     createBattleNetBottle()
   }
 
@@ -119,10 +119,10 @@ export async function ensureBattleNetBottleDeps(
   if (mirrored.length) log(`DLL syswow64: ${mirrored.join(', ')}`)
 
   if (bottleLaunchDepsOk()) {
-    return [true, 'Dependencias VC++/UCRT listas']
+    return [true, 'VC++/UCRT dependencies ready']
   }
 
-  log('Instalando dependencias Wine (vcrun, UCRT, d3dcompiler)…')
+  log('Installing Wine dependencies (vcrun, UCRT, d3dcompiler)…')
   const allVerbs = [...new Set([...BATTLENET_DEPS, ...BATTLENET_LAUNCH_PREP])]
   const [verbsOk, verbsMsg] = await installBattlenetVerbs(BATTLENET_BOTTLE, allVerbs, log, {
     force: true
@@ -135,13 +135,13 @@ export async function ensureBattleNetBottleDeps(
   if (!bottleLaunchDepsOk()) {
     return [
       false,
-      'No se pudieron desplegar las DLL VC++/UCRT. Revisa ~/.kalimotxo/logs/battlenet-install.log'
+      'Could not deploy VC++/UCRT DLLs. Check ~/.kalimotxo/logs/battlenet-install.log'
     ]
   }
-  return [true, 'Dependencias VC++/UCRT instaladas']
+  return [true, 'VC++/UCRT dependencies installed']
 }
 
-/** Instalación inicial: solo deps mínimas (más rápido; evita quedarse en 45% de Kalimotxo). */
+/** Initial install: minimal deps only (faster; avoids stalling at 45% in Kalimotxo). */
 export async function ensureBattleNetBottleDepsForInstall(
   log: (m: string) => void = logInfo,
   onVerb?: (verb: string, index: number, total: number) => void
@@ -150,7 +150,7 @@ export async function ensureBattleNetBottleDepsForInstall(
   if (!rtOk) return [false, rtMsg]
 
   if (!listBottles().some((b) => b.name === BATTLENET_BOTTLE)) {
-    log('Creando botella Battle.net…')
+    log('Creating Battle.net bottle…')
     createBattleNetBottle()
   }
 
@@ -158,11 +158,11 @@ export async function ensureBattleNetBottleDepsForInstall(
   if (mirrored.length) log(`DLL syswow64: ${mirrored.join(', ')}`)
 
   if (bottleLaunchDepsOk()) {
-    return [true, 'Dependencias listas']
+    return [true, 'Dependencies ready']
   }
 
   const verbs = [...BATTLENET_DEPS_QUICK]
-  log(`Instalando ${verbs.length} paquetes Wine (vcrun, UCRT)…`)
+  log(`Installing ${verbs.length} Wine packages (vcrun, UCRT)…`)
 
   for (let i = 0; i < verbs.length; i++) {
     const verb = verbs[i]!
@@ -171,7 +171,7 @@ export async function ensureBattleNetBottleDepsForInstall(
     const [ok, out] = await installBattlenetVerbs(BATTLENET_BOTTLE, [verb], log, {
       force: true
     })
-    if (!ok) return [false, `Falló ${verb}: ${out.slice(0, 280)}`]
+    if (!ok) return [false, `Failed ${verb}: ${out.slice(0, 280)}`]
     log(`✓ ${verb}`)
   }
 
@@ -181,8 +181,8 @@ export async function ensureBattleNetBottleDepsForInstall(
   if (!bottleLaunchDepsOk()) {
     return [
       false,
-      'Faltan DLL VC++/UCRT. Revisa ~/.kalimotxo/logs/battlenet-install.log o pulsa Reparar.'
+      'Missing VC++/UCRT DLLs. Check ~/.kalimotxo/logs/battlenet-install.log or click Repair.'
     ]
   }
-  return [true, 'Dependencias listas']
+  return [true, 'Dependencies ready']
 }

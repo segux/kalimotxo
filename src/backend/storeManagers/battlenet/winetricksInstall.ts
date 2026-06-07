@@ -8,7 +8,7 @@ export function shouldSkipWinetricksVerb(verb: string, installed: Set<string>): 
   return false
 }
 
-/** Fallos conocidos de winetricks que no impiden lanzar Battle.net. */
+/** Known winetricks failures that do not prevent launching Battle.net. */
 export function isRecoverableWinetricksFailure(verb: string, ok: boolean, output: string): boolean {
   if (ok) return false
   if (verb === 'mf') return true
@@ -30,7 +30,7 @@ export async function installBattlenetVerbs(
   try {
     installed = new Set(getBottleConfig(bottleName).installed_deps)
   } catch {
-    /* botella nueva */
+    /* new bottle */
   }
 
   for (const verb of verbs) {
@@ -46,8 +46,8 @@ export async function installBattlenetVerbs(
       log(`  ○ ${verb} (omitido: ${out.split('\n').find((l) => /warning|status|Aborting/i.test(l))?.slice(0, 120) ?? 'sin impacto en runtime'})`)
       continue
     }
-    if (!ok) return [false, `Falló ${verb}: ${out.slice(0, 400)}`]
+    if (!ok) return [false, `Failed ${verb}: ${out.slice(0, 400)}`]
     installed.add(verb)
   }
-  return [true, 'Dependencias winetricks aplicadas']
+  return [true, 'Winetricks dependencies applied']
 }

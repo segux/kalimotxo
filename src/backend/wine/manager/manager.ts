@@ -85,7 +85,7 @@ export function isMacSonomaOrHigher(): boolean {
   }
 }
 
-/** Heroic: Intel o macOS &lt; Sonoma → Wine-Crossover; Apple Silicon Sonoma+ → GPTK. */
+/** Heroic: Intel or macOS < Sonoma -> Wine-Crossover; Apple Silicon Sonoma+ -> GPTK. */
 export function pickHeroicDefaultWineVersion(catalog?: WineRelease[]): string | null {
   if (process.platform !== 'darwin') return null
   const list = catalog ?? loadCatalog()
@@ -168,10 +168,10 @@ export async function installWineVersionSync(
 ): Promise<{ success: boolean; message: string }> {
   const release = findRelease(version)
   if (!release) {
-    return { success: false, message: 'Versión no encontrada — actualiza el catálogo' }
+    return { success: false, message: 'Version not found — refresh the catalog' }
   }
   if (!release.download) {
-    return { success: false, message: 'Sin enlace de descarga' }
+    return { success: false, message: 'No download URL' }
   }
 
   const wineType = release.type
@@ -186,7 +186,7 @@ export async function installWineVersionSync(
     markInstalled(version, installDir)
     if (!getActiveVersionId()) setActiveVersionId(version)
     resetWineInstallationCache()
-    return { success: true, message: `${version} ya estaba instalado` }
+    return { success: true, message: `${version} was already installed` }
   }
 
   const archiveName = release.download.split('/').pop() ?? 'wine.tar.gz'
@@ -199,20 +199,20 @@ export async function installWineVersionSync(
   }
 
   try {
-    progress(0, `Descargando ${archiveName}…`)
+    progress(0, `Downloading ${archiveName}...`)
     await downloadFile(release.download, archive, (p) =>
-      progress(p, `Descargando ${archiveName}…`)
+      progress(p, `Downloading ${archiveName}...`)
     )
-    setInstallState({ status: 'extracting', percent: 100, message: 'Extrayendo…' })
+    setInstallState({ status: 'extracting', percent: 100, message: 'Extracting...' })
     if (existsSync(installDir)) rmSync(installDir, { recursive: true, force: true })
     extractTar(archive, installDir)
     if (!findWine64InTree(installDir)) {
-      return { success: false, message: 'Extracción OK pero no se encontró wine64' }
+      return { success: false, message: 'Extraction OK but wine64 not found' }
     }
     markInstalled(version, installDir)
     if (!getActiveVersionId()) setActiveVersionId(version)
     resetWineInstallationCache()
-    return { success: true, message: `${version} instalado` }
+    return { success: true, message: `${version} installed` }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { success: false, message: msg }
@@ -224,14 +224,14 @@ export function installWineVersion(
   options?: { overwrite?: boolean }
 ): { success: boolean; message: string } {
   if (installState.running) {
-    return { success: false, message: 'Ya hay una instalación de Wine en curso' }
+    return { success: false, message: 'A Wine installation is already in progress' }
   }
   setInstallState({
     running: true,
     version,
     status: 'downloading',
     percent: 0,
-    message: 'Iniciando…'
+    message: 'Starting...'
   })
   void (async () => {
     const result = await installWineVersionSync(version, options)
@@ -243,52 +243,52 @@ export function installWineVersion(
     })
     sendFrontendMessage('wineInstallFinished', result)
   })()
-  return { success: true, message: `Instalando ${version}…` }
+  return { success: true, message: `Installing ${version}...` }
 }
 
 export function setActiveWineVersion(version: string): { success: boolean; message: string } {
   const release = findRelease(version)
   if (!release?.is_installed) {
-    return { success: false, message: 'Esa versión no está instalada' }
+    return { success: false, message: 'That version is not installed' }
   }
   if (!findWine64InTree(release.install_dir)) {
-    return { success: false, message: 'wine64 no encontrado en el directorio' }
+    return { success: false, message: 'wine64 not found in the directory' }
   }
   setActiveVersionId(version)
   resetWineInstallationCache()
-  return { success: true, message: `Wine activo: ${version}` }
+  return { success: true, message: `Active Wine: ${version}` }
 }
 
 export function removeWineVersion(version: string): { success: boolean; message: string } {
   const release = findRelease(version)
   if (!release?.is_installed) {
-    return { success: false, message: 'Versión no instalada' }
+    return { success: false, message: 'Version not installed' }
   }
   if (release.install_dir && existsSync(release.install_dir)) {
     rmSync(release.install_dir, { recursive: true, force: true })
   }
   markRemoved(version)
   resetWineInstallationCache()
-  return { success: true, message: `${version} eliminado` }
+  return { success: true, message: `${version} removed` }
 }
 
-/** Setup: Wine-Crossover (Heroic) o GPTK según hardware, con fallback a Staging legacy. */
+/** Setup: Wine-Crossover (Heroic) or GPTK depending on hardware, with Staging legacy fallback. */
 export async function ensureHeroicDefaultWine(
   onProgress?: (pct: number, msg: string) => void
 ): Promise<{ success: boolean; message: string }> {
   migrateLegacyInstall()
   if (resolveActiveWineRoot() && findWine64InTree(resolveActiveWineRoot()!)) {
-    return { success: true, message: 'Wine ya disponible' }
+    return { success: true, message: 'Wine already available' }
   }
-  onProgress?.(5, 'Actualizando catálogo Wine…')
+  onProgress?.(5, 'Updating Wine catalog...')
   await refreshWineReleases()
   const version = pickHeroicDefaultWineVersion()
   if (version) {
-    onProgress?.(10, `Instalando ${version}…`)
+    onProgress?.(10, `Installing ${version}...`)
     const result = await installWineVersionSync(version, {
       onProgress: (p, m) => onProgress?.(10 + Math.floor(p * 0.85), m)
     })
     if (result.success) return result
   }
-  return { success: false, message: 'No se pudo instalar Wine por defecto (Heroic)' }
+  return { success: false, message: 'Could not install default Wine (Heroic)' }
 }

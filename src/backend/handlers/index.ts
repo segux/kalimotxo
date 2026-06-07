@@ -127,14 +127,14 @@ export function registerAllHandlers(): void {
     return {
       success: true,
       message: r.programData
-        ? 'Caché y Agent reiniciados automáticamente'
-        : 'No había caché ProgramData que limpiar'
+        ? 'Cache and Agent reset automatically'
+        : 'No ProgramData cache to clear'
     }
   })
 
   addHandler('battleNetWakeAgent', async () => {
     await maintainBattleNetAgent('Battle.net', { deep: false, wake: true })
-    return { success: true, message: 'Agent preparado automáticamente' }
+    return { success: true, message: 'Agent ready' }
   })
 
   addHandler('getWineVersions', async () => ({ versions: loadCatalog() }))

@@ -9,7 +9,7 @@ import {
   resolveCrossoverBottleName
 } from '../wine/compatibilityLayers'
 import { applyGraphicsEnvForBottle } from '../wine/graphicsBackend'
-import { setupWineEnvVars } from '../wine/wineEnv'
+import { mergeDllOverrides, setupWineEnvVars } from '../wine/wineEnv'
 import type { WineInstallation } from '../wine/types'
 import { filterWinetricksLogLine } from '../tools/winetricksLog'
 import { killWineServersForBottle } from '../wine/wineServerKill'
@@ -107,12 +107,13 @@ export function runExe(
     cwd?: string
     logPath?: string
     args?: string[]
+    env?: NodeJS.ProcessEnv
   }
 ): ChildProcess {
   const wine = getWineBinary(bottleName)
-  const env = options?.battleNetEnv
+  const env = options?.env ?? (options?.battleNetEnv
     ? buildBattleNetLaunchEnv(bottleName, { gameLaunch: options.gameLaunch })
-    : buildEnv(bottleName)
+    : buildEnv(bottleName))
   const proc = cpSpawn(wine, [exePath, ...(options?.args ?? [])], {
     env,
     cwd: options?.cwd || join(exePath, '..'),
@@ -140,8 +141,8 @@ export function killBottle(bottleName: string): void {
 }
 
 /**
- * Mata procesos Wine del prefix. `wait: true` usa wineserver -w (hasta ~90s) — solo winetricks/reparación.
- * En Jugar no usar -w: si Battle.net sigue abierto, -w bloquea el IPC hasta que el usuario cierre el cliente.
+ * Stops Wine processes for the prefix. `wait: true` uses wineserver -w (up to ~90s) — only for winetricks/repair.
+ * Do not use -w during Play: if Battle.net is still open, -w blocks IPC until the user closes the client.
  */
 export function stopWineProcesses(
   bottleName: string,
@@ -168,8 +169,8 @@ export function stopWineForWinetricks(bottleName: string): void {
 const WIN10_REGISTRY_MARKER = '.kalimotxo-win10-registry-v2'
 
 /**
- * Build 19042 evita que Battle.net detecte macOS. Sin `winecfg` en cada lanzamiento:
- * winecfg refresca el prefix y provoca ucrtbase.dll error=80 en botellas ya configuradas.
+ * Build 19042 prevents Battle.net from detecting macOS. Avoid running `winecfg` on each
+ * launch: winecfg refreshes the prefix and causes ucrtbase.dll error=80 on already-configured bottles.
  */
 export function applyBattleNetWindowsRegistry(
   bottleName = BATTLENET_BOTTLE,
@@ -202,8 +203,8 @@ export function applyBattleNetWindowsRegistry(
     timeout: 15_000
   })
 
-  // Desactiva el diálogo de crash de Wine (como D4Mac): un `division by zero`
-  // en hilos CEF no debe bloquear el arranque del cliente.
+  // Disable Wine's crash dialog (same as D4Mac): a `division by zero` in a
+  // CEF thread must not block the client from starting.
   const crashKey = 'HKCU\\Software\\Wine\\WineDbg'
   spawnSync(
     wine,

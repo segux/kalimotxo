@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, readdirSync, renameSync, rmSync, statSync } f
 import { join } from 'path'
 import { execSync } from 'child_process'
 
-/** Tamaño del release dxmt-v0.74-builtin.tar.gz en GitHub (bytes). */
+/** Expected size of the dxmt-v0.74-builtin.tar.gz release on GitHub (bytes). */
 export const DXMT_ARCHIVE_EXPECTED_BYTES = 18_990_005
 
 export function isGzipArchiveValid(archivePath: string): boolean {
@@ -15,7 +15,7 @@ export function isGzipArchiveValid(archivePath: string): boolean {
   }
 }
 
-/** Comprueba que el tar.gz de DXMT se puede listar y contiene los artefactos clave. */
+/** Verifies that the DXMT tar.gz can be listed and contains the key artifacts. */
 export function isDxmtArchiveComplete(archivePath: string): boolean {
   if (!existsSync(archivePath)) return false
   try {
@@ -37,11 +37,7 @@ export function isDxmtArchiveComplete(archivePath: string): boolean {
   }
 }
 
-/**
- * Descarga binarios grandes con curl (fiable con redirects de GitHub).
- * Escribe a `.part` y renombra al terminar.
- */
-/** Reutiliza un .tar.gz de DXMT ya descargado en caché (nombres distintos). */
+/** Reuses an already-downloaded DXMT .tar.gz from cache (handles varying filenames). */
 export function resolveDxmtCacheArchive(cacheDir: string): string | null {
   const canonical = join(cacheDir, 'dxmt.tar.gz')
   if (isDxmtArchiveComplete(canonical)) return canonical

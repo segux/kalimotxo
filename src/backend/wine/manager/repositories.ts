@@ -15,10 +15,10 @@ export interface WineRepository {
 /** Mismos repos que Heroic / kalimotxo Python. */
 export const MACOS_REPOSITORIES: WineRepository[] = [
   {
-    // Runtime «Battle.net ready»: Wine 11 (CodeWeavers) + DXMT + D3DMetal +
-    // MoltenVK del stack D4Mac. Es el único que soporta WRITECOPY y arranca el
-    // cliente CEF en Apple Silicon. No tiene API pública de releases: se instala
-    // desde un bundle local (ver docs/battlenet-wine-problemas-y-roadmap.md).
+    // "Battle.net ready" runtime: Wine 11 (CodeWeavers) + DXMT + D3DMetal +
+    // MoltenVK from the D4Mac stack. The only build that supports WRITECOPY and
+    // starts the CEF client on Apple Silicon. No public release API — installed
+    // from a local bundle (see docs/battlenet-wine-problemas-y-roadmap.md).
     id: 'wine-battlenet',
     name: 'Wine Battle.net (D4Mac)',
     typeLabel: 'Wine-BattleNet',

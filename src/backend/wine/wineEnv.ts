@@ -15,22 +15,23 @@ const GRAPHICS_STRIP = [
   'DXVK_HUD',
   'DXVK_ASYNC',
   'WINEESYNC',
-  'WINEMSYNC'
+  'WINEMSYNC',
+  'WINE_DISABLE_VA_ALLOC'
 ] as const
 
 const WINEMENU_DISABLE = 'winemenubuilder.exe=d'
 
 /**
- * Wine Staging (Gcenx) NO implementa el parche CodeWeavers `WINE_SIMULATE_WRITECOPY`
- * y entra en deadlock en `loader_section` si se activa (ventana «actualizando Wine»
- * infinita). Builds tipo CrossOver / D4Mac (wine-cx*, Wine 11) sí lo soportan y lo
- * necesitan para que CEF no muera con `nested exception on signal stack`.
+ * Wine Staging (Gcenx) does NOT implement the CodeWeavers `WINE_SIMULATE_WRITECOPY`
+ * patch and deadlocks in `loader_section` when it is set (infinite "updating Wine"
+ * window). CrossOver / D4Mac builds (wine-cx*, Wine 11) do support it and need it
+ * so CEF does not crash with `nested exception on signal stack`.
  */
 function wineSupportsWriteCopy(installation: WineInstallation): boolean {
   return !/staging/i.test(installation.name)
 }
 
-/** Subdirectorios de DXMT con DLLs builtin (`i386-windows`, `x86_64-windows`), buscando un nivel anidado (p. ej. `dxmt/v0.74/`). */
+/** DXMT subdirs with builtin DLLs (`i386-windows`, `x86_64-windows`), searching one level deep (e.g. `dxmt/v0.74/`). */
 function resolveDxmtBuiltinDirs(): string[] {
   if (!existsSync(DXMT_DIR)) return []
   const wanted = ['i386-windows', 'x86_64-windows']
@@ -53,7 +54,7 @@ function resolveDxmtBuiltinDirs(): string[] {
   return dirs
 }
 
-/** Carpeta `x86_64-unix` de DXMT (contiene `winemetal.so`) para `DYLD_FALLBACK_LIBRARY_PATH`. */
+/** DXMT `x86_64-unix` directory (contains `winemetal.so`) for `DYLD_FALLBACK_LIBRARY_PATH`. */
 function resolveDxmtUnixDir(): string | null {
   if (!existsSync(DXMT_DIR)) return null
   const roots = [DXMT_DIR]
@@ -72,19 +73,19 @@ function resolveDxmtUnixDir(): string | null {
   return null
 }
 
-/** `libd3dshared.dylib` de D3DMetal (GPTK) si está en el runtime. */
+/** `libd3dshared.dylib` from D3DMetal (GPTK) if present in the runtime. */
 function resolveD3dmetalSharedLib(): string | null {
   const lib = join(D3DMETAL_DIR, 'libd3dshared.dylib')
   return existsSync(lib) ? lib : null
 }
 
 /**
- * Directorio con un `libgnutls.30.dylib` **x86_64** (más sus dependencias vía
- * `@loader_path`) para `DYLD_FALLBACK_LIBRARY_PATH`. El Wine de Battle.net corre
- * bajo Rosetta (x86_64) y su `secur32`/`bcrypt` cargan gnutls para TLS; sin él el
- * Agent no puede hacer HTTPS (`CURL error 35`) y el cliente se queda colgado.
- * Los builds de Wine-Crossover / GPTK / Staging que descarga Kalimotxo ya
- * empaquetan estos dylibs en `…/Resources/wine/lib`.
+ * Directory that contains a `libgnutls.30.dylib` **x86_64** (plus its deps via
+ * `@loader_path`) for `DYLD_FALLBACK_LIBRARY_PATH`. Battle.net's Wine runs under
+ * Rosetta (x86_64) and its `secur32`/`bcrypt` load gnutls for TLS; without it the
+ * Agent cannot do HTTPS (`CURL error 35`) and the client hangs.
+ * The Wine-Crossover / GPTK / Staging builds that Kalimotxo downloads already
+ * bundle these dylibs in `…/Resources/wine/lib`.
  */
 export function resolveBundledGnutlsDir(): string | null {
   if (!existsSync(WINE_DIR)) return null
@@ -111,11 +112,11 @@ export function resolveBundledGnutlsDir(): string | null {
 }
 
 /**
- * Directorio `lib/external` que algunos builds de Wine «Battle.net ready»
- * (D4Mac / Wine 11 + GPTK) llevan junto al binario, con DXMT, D3DMetal,
- * `libd3dshared.dylib` y `libMoltenVK.dylib` **emparejados** a esa versión de
- * Wine. Se prefiere a los componentes sueltos de `runtime/` cuando existe.
- * `installation.bin` es `<root>/bin/wine`.
+ * `lib/external` directory that some "Battle.net ready" Wine builds
+ * (D4Mac / Wine 11 + GPTK) ship next to the binary, with DXMT, D3DMetal,
+ * `libd3dshared.dylib` and `libMoltenVK.dylib` **matched** to that Wine version.
+ * Preferred over the loose `runtime/` components when present.
+ * `installation.bin` is `<root>/bin/wine`.
  */
 export function resolveWineExternalDir(installation: WineInstallation): string | null {
   const binDir = installation.bin.replace(/\/[^/]+$/, '') // <root>/bin
@@ -129,8 +130,8 @@ function prependPath(existing: string | undefined, parts: string[]): string {
   return [...new Set(all)].join(':')
 }
 
-/** Última aparición gana (evita locationapi=n,b y locationapi=d a la vez). */
-function mergeDllOverrides(existing: string | undefined, extra: string[]): string {
+/** Last occurrence wins (avoids locationapi=n,b and locationapi=d at the same time). */
+export function mergeDllOverrides(existing: string | undefined, extra: string[]): string {
   const map = new Map<string, string>()
   const ingest = (chunk: string): void => {
     const t = chunk.trim()
@@ -147,7 +148,7 @@ function mergeDllOverrides(existing: string | undefined, extra: string[]): strin
 }
 
 /**
- * Variables Wine al estilo Heroic `setupWineEnvVars` (macOS / Battle.net).
+ * Wine environment variables, Heroic-style `setupWineEnvVars` (macOS / Battle.net).
  */
 export function setupWineEnvVars(
   base: NodeJS.ProcessEnv,
@@ -173,17 +174,12 @@ export function setupWineEnvVars(
     for (const [k, v] of Object.entries(options.bottleEnvVars)) {
       if (
         options.battleNetLaunch &&
-        (k === 'WINEESYNC' || k === 'WINEMSYNC' || GRAPHICS_STRIP.includes(k as (typeof GRAPHICS_STRIP)[number]))
+        GRAPHICS_STRIP.includes(k as (typeof GRAPHICS_STRIP)[number])
       ) {
         continue
       }
       env[k] = v
     }
-  }
-
-  if (options.battleNetLaunch) {
-    delete env.WINEESYNC
-    delete env.WINEMSYNC
   }
 
   switch (installation.type) {
@@ -205,16 +201,19 @@ export function setupWineEnvVars(
 
   env.WINEDLLOVERRIDES = mergeDllOverrides(env.WINEDLLOVERRIDES, [WINEMENU_DISABLE])
 
-  if (options.battleNetLaunch && !options.gameLaunch) {
-    // Stack «Battle.net ready» alineado con D4Mac (Wine 11 + GPTK 3 + DXMT).
-    // Ver docs/battlenet-wine-problemas-y-roadmap.md §3e.
+  if (options.battleNetLaunch) {
+    // "Battle.net ready" stack aligned with D4Mac (Wine 11 + GPTK 3 + DXMT).
+    // Applied to BOTH the launcher client AND game launches — all Blizzard
+    // titles need it (WRITECOPY for exception handling, MoltenVK for GPU,
+    // gnutls for TLS, DXMT/D3DMetal for graphics).
+    // See docs/battlenet-wine-problemas-y-roadmap.md §3e.
     env.WINE_LARGE_ADDRESS_AWARE = env.WINE_LARGE_ADDRESS_AWARE ?? '1'
     env.WINE_HEAP_ZERO_MEMORY = env.WINE_HEAP_ZERO_MEMORY ?? '1'
     if (process.arch === 'arm64') {
       env.ROSETTA_ADVERTISE_AVX = '1'
     }
-    // Parche CEF/excepciones (copy-on-write) — solo en Wines que lo soportan;
-    // en Staging provoca deadlock, así que se omite.
+    // CEF/exception patch (copy-on-write) — only on Wines that support it;
+    // omitted on Staging where it causes a deadlock.
     if (wineSupportsWriteCopy(installation)) {
       env.WINE_SIMULATE_WRITECOPY = env.WINE_SIMULATE_WRITECOPY ?? '1'
     }
@@ -227,19 +226,19 @@ export function setupWineEnvVars(
       'vcruntime140_1=n,b',
       'msvcp140_1=n,b',
       'mf=n,b',
-      // CRÍTICO: forzar el `vulkan-1` builtin de Wine (winevulkan → MoltenVK,
-      // que SÍ expone VK_KHR_win32_surface). Si no, ANGLE carga el
-      // `vulkan-1.dll` (SwiftShader headless) que Battle.net trae en su carpeta
-      // y que no tiene WSI de superficie → la ventana CEF nunca se pinta.
+      // CRITICAL: force Wine's builtin `vulkan-1` (winevulkan -> MoltenVK,
+      // which DOES expose VK_KHR_win32_surface). Otherwise ANGLE loads the
+      // headless SwiftShader `vulkan-1.dll` that Battle.net ships in its folder
+      // which has no surface WSI -> the CEF window never paints.
       'vulkan-1=b'
     ])
 
-    // Libs `lib/external` empaquetadas junto al Wine activo (D4Mac / Wine 11),
-    // emparejadas a esa versión. Se prefieren a los componentes de `runtime/`.
+    // `lib/external` libs bundled with the active Wine (D4Mac / Wine 11),
+    // matched to that version. Preferred over the loose `runtime/` components.
     const wineExt = resolveWineExternalDir(installation)
 
-    // CRÍTICO: DXMT como DLL builtin de Wine vía WINEDLLPATH (no copias sueltas
-    // en syswow64). Sin esto el renderer CEF muere con error GPU fatal.
+    // CRITICAL: DXMT as a Wine builtin DLL via WINEDLLPATH (not loose copies in
+    // syswow64). Without this the CEF renderer dies with a fatal GPU error.
     const dxmtDirs: string[] = []
     if (wineExt) {
       for (const sub of ['i386-windows', 'x86_64-windows']) {
@@ -252,7 +251,7 @@ export function setupWineEnvVars(
       env.WINEDLLPATH = prependPath(env.WINEDLLPATH, dxmtDirs)
     }
 
-    // D3DMetal (GPTK 3) como backend gráfico, estilo CrossOver.
+    // D3DMetal (GPTK 3) as graphics backend, CrossOver-style.
     const extSharedLib = wineExt ? join(wineExt, 'libd3dshared.dylib') : ''
     const sharedLib =
       extSharedLib && existsSync(extSharedLib) ? extSharedLib : resolveD3dmetalSharedLib()
@@ -261,10 +260,10 @@ export function setupWineEnvVars(
       env.CX_APPLEGPTK_LIBD3DSHARED_PATH = sharedLib
     }
 
-    // MoltenVK / D3DMetal / winemetal.so para el cargador dinámico de macOS.
+    // MoltenVK / D3DMetal / winemetal.so for the macOS dynamic loader.
     const fallbackLibDirs: string[] = []
     if (wineExt) {
-      // libMoltenVK.dylib + libd3dshared.dylib viven aquí.
+      // libMoltenVK.dylib + libd3dshared.dylib live here.
       fallbackLibDirs.push(wineExt)
       const extD3dmetalFw = join(wineExt, 'D3DMetal.framework', 'Versions', 'A')
       if (existsSync(extD3dmetalFw)) fallbackLibDirs.push(extD3dmetalFw)
@@ -276,7 +275,7 @@ export function setupWineEnvVars(
     if (existsSync(D3DMETAL_DIR)) fallbackLibDirs.push(D3DMETAL_DIR)
     const dxmtUnix = resolveDxmtUnixDir()
     if (dxmtUnix) fallbackLibDirs.push(dxmtUnix)
-    // libgnutls x86_64 para que el TLS de schannel/bcrypt funcione (Agent HTTPS).
+    // libgnutls x86_64 so that schannel/bcrypt TLS works (Agent HTTPS).
     const gnutlsDir = resolveBundledGnutlsDir()
     if (gnutlsDir) fallbackLibDirs.push(gnutlsDir)
     if (fallbackLibDirs.length) {
@@ -292,6 +291,11 @@ export function setupWineEnvVars(
     env.WINEDEBUG = 'err+module'
   }
 
+  // CrossOver 26.1 sets this for .NET 7/8 apps under Rosetta (D2R uses .NET).
+  if (process.arch === 'arm64') {
+    env.DOTNET_EnableWriteXorExecute = '0'
+  }
+
   if (installation.type === 'toolkit' && process.arch === 'arm64') {
     env.ROSETTA_ADVERTISE_AVX = '1'
   }
@@ -301,7 +305,7 @@ export function setupWineEnvVars(
       env.BROWSER = ensureOAuthBrowserScript()
       env.KALIMOTXO_DATA = process.env.KALIMOTXO_DATA ?? DATA_DIR
     } catch {
-      /* script opcional en dev sin scripts/ */
+      /* optional script — absent in dev without scripts/ */
     }
   }
 

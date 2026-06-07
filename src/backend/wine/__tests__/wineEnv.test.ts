@@ -38,13 +38,17 @@ describe('setupWineEnvVars (Heroic-style)', () => {
     expect(String(env.WINEDLLOVERRIDES)).toContain('vulkan-1=b')
   })
 
-  it('does not force vulkan-1 builtin for game launches', () => {
+  it('forces builtin vulkan-1 for game launches (same stack as client)', () => {
     const env = setupWineEnvVars({}, wineInstall, {
       winePrefix: '/tmp/prefix',
       battleNetLaunch: true,
       gameLaunch: true
     })
-    expect(String(env.WINEDLLOVERRIDES)).not.toContain('vulkan-1=b')
+    // Battle.net games inherit the same "Battle.net ready" stack, including
+    // vulkan-1=b (prevents SwiftShader headless from loading).
+    expect(String(env.WINEDLLOVERRIDES)).toContain('vulkan-1=b')
+    // VA_ALLOC is game-launch only (helps some titles with memory layout).
+    expect(env.WINE_DISABLE_VA_ALLOC).toBe('1')
   })
 
   it('uses CX_BOTTLE for crossover', () => {

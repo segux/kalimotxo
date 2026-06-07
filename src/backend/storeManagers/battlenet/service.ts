@@ -27,6 +27,7 @@ import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
 import { startAgentPortBridge, stopAgentPortBridge } from './agentPortBridge'
+import { startGameWatcher, stopGameWatcher } from './gameWatcher'
 import { resetWineInstallationCache } from '../../launcher/wineRunner'
 import { logInfo } from '../../logger'
 import { sendFrontendMessage } from '../../ipc'
@@ -209,9 +210,9 @@ async function downloadInstaller(onProgress?: (pct: number) => void): Promise<st
 
 async function runInstallPipeline(): Promise<[boolean, string]> {
   if (isBattleNetInstalled()) {
-    return [false, 'Battle.net ya está instalado. Usa «Desinstalar» para quitarlo.']
+    return [false, 'Battle.net is already installed. Use Uninstall to remove it.']
   }
-  setProgress('runtime', 5, 'Preparando Wine y herramientas…')
+  setProgress('runtime', 5, 'Preparing Wine and tools...')
   const { ensureRuntimeReady } = await import('../../setup/ensureEnvironment')
   const [rtOk, rtMsg] = await ensureRuntimeReady((m) => {
     logInstall(m)
@@ -222,24 +223,24 @@ async function runInstallPipeline(): Promise<[boolean, string]> {
     return [false, rtMsg]
   }
 
-  setProgress('bottle', 12, 'Creando botella Battle.net…')
+  setProgress('bottle', 12, 'Creating Battle.net bottle...')
   createBattleNetBottle()
 
   const installLog = join(LOGS_DIR, 'battlenet-install.log')
-  setProgress('deps', 18, 'Instalando Visual C++ y UCRT (puede tardar 5–15 min)…')
+  setProgress('deps', 18, 'Installing Visual C++ and UCRT (may take 5-15 min)...')
   const [depsOk, depsMsg] = await installDepsQuick(logInstall, (verb, index, total) => {
     const pct = 18 + Math.floor((27 * (index + 1)) / total)
-    setProgress('deps', pct, `Instalando ${verb}… (${index + 1}/${total})`)
+    setProgress('deps', pct, `Installing ${verb}... (${index + 1}/${total})`)
   })
   if (!depsOk) {
     setProgress('error', 0, depsMsg)
     return [false, depsMsg]
   }
-  setProgress('deps', 45, 'Dependencias Wine listas')
+  setProgress('deps', 45, 'Wine dependencies ready')
 
-  setProgress('download', 50, 'Descargando instalador Blizzard…')
+  setProgress('download', 50, 'Downloading Blizzard installer...')
   const installer = await downloadInstaller((pct) => {
-    setProgress('download', 50 + Math.floor(35 * (pct / 100)), `Descargando… ${pct}%`)
+    setProgress('download', 50 + Math.floor(35 * (pct / 100)), `Downloading... ${pct}%`)
   })
 
   fixBrokenUpdateFolders()
@@ -247,22 +248,22 @@ async function runInstallPipeline(): Promise<[boolean, string]> {
   prepareBottleForLauncher()
   prepareBlizzardInstallerPrefix(BATTLENET_BOTTLE, installLog)
 
-  setProgress('installer', 90, 'Abriendo instalador Blizzard…')
+  setProgress('installer', 90, 'Opening Blizzard installer...')
   runExe(BATTLENET_BOTTLE, installer, {
     battleNetEnv: true,
     cwd: join(installer, '..'),
     logPath: installLog
   })
   startInstallerAgentWatchdog(BATTLENET_BOTTLE, installLog)
-  logInstall('Instalador abierto. El 45% de Blizzard = descarga del Agent; Kalimotxo lo vigila cada 20 s.')
+  logInstall('Installer open. Blizzard 45% = Agent download; Kalimotxo watches every 20s.')
 
   if (findBattleNetExe()) {
-    const msg = 'Battle.net instalado correctamente.'
+    const msg = 'Battle.net installed successfully.'
     setProgress('done', 100, msg)
     return [true, msg]
   }
   const msg =
-    'Kalimotxo terminó (100%). Completa el asistente Blizzard en la ventana Wine hasta que acabe la descarga.'
+    'Kalimotxo finished (100%). Complete the Blizzard wizard in the Wine window until the download finishes.'
   setProgress('done', 100, msg)
   startClientWatch()
   return [true, msg]
@@ -276,13 +277,13 @@ function startClientWatch(): void {
     iter++
     const agentMb = Math.round(agentInstallBytes() / (1024 * 1024))
     if (agentMb > 0 && iter % 6 === 0) {
-      logInstall(`Agent en disco: ~${agentMb} MB`)
+      logInstall(`Agent on disk: ~${agentMb} MB`)
     }
     if (isClientComplete()) {
       stopInstallerAgentWatchdog()
       syncLaunchRuntime()
       fixBrokenUpdateFolders()
-      setProgress('done', 100, 'Cliente Battle.net instalado — ya puedes pulsar «Lanzar».')
+      setProgress('done', 100, 'Battle.net client installed — you can now click Launch.')
       pushStatus()
       clearInterval(id)
       clientWatchRunning = false
@@ -296,7 +297,7 @@ function startClientWatch(): void {
   }, 5000)
 }
 
-/** Reabre el instalador y despierta el Agent (cuelgue al 45% de Blizzard). */
+/** Reopens the installer and wakes the Agent (Blizzard stuck at 45%). */
 export async function kickBlizzardInstaller(): Promise<{ success: boolean; message: string }> {
   installRunning = false
   const installLog = join(LOGS_DIR, 'battlenet-install.log')
@@ -311,7 +312,7 @@ export async function kickBlizzardInstaller(): Promise<{ success: boolean; messa
   await new Promise((r) => setTimeout(r, 3000))
 
   if (repairAgentLayoutForInstall(BATTLENET_BOTTLE, installLog)) {
-    appendFileSync(installLog, 'Agent 7 MB copiado sobre stub — el 45% debería avanzar\n')
+    appendFileSync(installLog, 'Agent 7 MB copied over stub — 45% should advance\n')
   }
 
   const { ensureBattleNetBottleDepsForInstall } = await import('../../setup/ensureEnvironment')
@@ -336,19 +337,19 @@ export async function kickBlizzardInstaller(): Promise<{ success: boolean; messa
 
   return {
     success: true,
-    message: 'Instalador abierto.'
+    message: 'Installer opened.'
   }
 }
 
 function beginInstallPipeline(): { success: boolean; message: string } {
-  if (installRunning) return { success: false, message: 'Instalación ya en curso' }
+  if (installRunning) return { success: false, message: 'Installation already in progress' }
   if (isBattleNetInstalled()) {
-    return { success: false, message: 'Battle.net ya está instalado' }
+    return { success: false, message: 'Battle.net is already installed' }
   }
   installRunning = true
   mkdirSync(LOGS_DIR, { recursive: true })
   writeFileSync(join(LOGS_DIR, 'battlenet-install.log'), '--- Battle.net install ---\n')
-  setProgress('starting', 0, 'Iniciando instalación…')
+  setProgress('starting', 0, 'Starting installation...')
 
   void runInstallPipeline().then(([ok, message]) => {
     installRunning = false
@@ -357,31 +358,31 @@ function beginInstallPipeline(): { success: boolean; message: string } {
     pushStatus()
   })
 
-  return { success: true, message: 'Instalación iniciada' }
+  return { success: true, message: 'Installation started' }
 }
 
 export function startInstall(): { success: boolean; message: string } {
   return beginInstallPipeline()
 }
 
-/** Espera a que termine la fase automatizada de Kalimotxo (no el asistente Blizzard en Wine). */
+/** Waits for the Kalimotxo automated phase to finish (not the Blizzard wizard in Wine). */
 export async function runInstallAndWait(): Promise<{ success: boolean; message: string }> {
   if (isBattleNetInstalled()) {
-    return { success: true, message: 'Battle.net ya está instalado' }
+    return { success: true, message: 'Battle.net is already installed' }
   }
   const started = beginInstallPipeline()
   if (!started.success) return started
   while (installRunning) {
     await new Promise((r) => setTimeout(r, 400))
   }
-  return lastInstallResult ?? { success: false, message: 'Instalación sin resultado' }
+  return lastInstallResult ?? { success: false, message: 'Installation produced no result' }
 }
 
 export async function repair(options?: { includeOptional?: boolean }): Promise<{
   success: boolean
   message: string
 }> {
-  if (repairRunning) return { success: false, message: 'Reparación ya en curso' }
+  if (repairRunning) return { success: false, message: 'Repair already in progress' }
   repairRunning = true
   try {
     const { ensureToolsForWinetricks } = await import('../../setup/ensureEnvironment')
@@ -416,20 +417,20 @@ export async function repair(options?: { includeOptional?: boolean }): Promise<{
 }
 
 /**
- * Asistente «Reparar bottle»: deja el prefix coherente con el Wine activo
- * (Wine 11 «Battle.net ready») sin perder el cliente ni los juegos instalados.
+ * "Repair bottle" wizard: makes the prefix consistent with the active Wine
+ * (Wine 11 "Battle.net ready") without losing the client or installed games.
  *
- * Pasos: parar todo Wine → backup del registro → un único `wineboot --update`
- * con el Wine activo (reconcilia DLLs/registro tras mezclar Wines) → reaplicar
- * el registro Windows de Battle.net (win10, diálogo de crash off) → reinstalar
- * verbs y dependencias de lanzamiento → reiniciar el Agent.
+ * Steps: stop all Wine -> registry backup -> single `wineboot --update` with the
+ * active Wine (reconciles DLLs/registry after mixing Wine versions) -> reapply
+ * the Battle.net Windows registry (win10, crash dialog off) -> reinstall verbs
+ * and launch dependencies -> restart the Agent.
  *
- * Útil cuando el bottle se degrada (síntoma: el cliente arranca pero la ventana
- * no pinta / MoltenVK deja de inicializar). Ver docs §4.
+ * Useful when the bottle degrades (symptom: client starts but window stays blank /
+ * MoltenVK stops initializing). See docs §4.
  */
 export async function repairBottle(): Promise<{ success: boolean; message: string }> {
   if (installRunning || launchRunning || repairRunning) {
-    return { success: false, message: 'Hay otra operación en curso — espera a que termine' }
+    return { success: false, message: 'Another operation is in progress — wait for it to finish' }
   }
   repairRunning = true
   const logPath = join(LOGS_DIR, 'battlenet-repair-bottle.log')
@@ -450,7 +451,7 @@ export async function repairBottle(): Promise<{ success: boolean; message: strin
       return {
         success: false,
         message:
-          'No hay un bottle de Battle.net inicializado. Pulsa «Abrir Battle.net» para crearlo primero.'
+          'No Battle.net bottle found. Click Open Battle.net to create one first.'
       }
     }
 
@@ -461,10 +462,10 @@ export async function repairBottle(): Promise<{ success: boolean; message: strin
     const reconcile = await reconcileBottleWithActiveWine(BATTLENET_BOTTLE, log)
     if (!reconcile.ok) return { success: false, message: reconcile.message }
 
-    log('Reaplicando registro Windows de Battle.net…')
+    log('Reapplying Battle.net Windows registry...')
     applyBattleNetWindowsRegistry(BATTLENET_BOTTLE, { force: true })
 
-    log('Reinstalando dependencias VC++/UCRT…')
+    log('Reinstalling VC++/UCRT dependencies...')
     const [verbsOk, verbsMsg] = await installBattlenetVerbs(
       BATTLENET_BOTTLE,
       BATTLENET_DEPS,
@@ -478,17 +479,17 @@ export async function repairBottle(): Promise<{ success: boolean; message: strin
     resetWineInstallationCache()
     fixBrokenUpdateFolders()
 
-    log('Reiniciando el Update Agent…')
+    log('Restarting the Update Agent...')
     await maintainBattleNetAgent(BATTLENET_BOTTLE, { deep: true, log })
 
     const [depsOk, depsMsg] = await ensureLaunchDependencies(log)
     pushStatus()
 
-    const tail = reconcile.backupDir ? ` (registro respaldado en ${reconcile.backupDir})` : ''
+    const tail = reconcile.backupDir ? ` (registry backed up at ${reconcile.backupDir})` : ''
     return {
       success: depsOk,
       message: depsOk
-        ? `Bottle reparado con el Wine activo. Prueba «Abrir Battle.net».${tail}`
+        ? `Bottle repaired with the active Wine. Try Open Battle.net.${tail}`
         : depsMsg
     }
   } finally {
@@ -497,15 +498,15 @@ export async function repairBottle(): Promise<{ success: boolean; message: strin
 }
 
 /**
- * Un solo flujo: instala lo que falte y abre Battle.net.
+ * Single flow: installs what is missing and opens Battle.net.
  */
 export async function play(): Promise<{ success: boolean; message: string }> {
   if (installRunning || launchRunning || repairRunning) {
-    return { success: false, message: 'Espera a que termine lo que está en curso' }
+    return { success: false, message: 'Wait for the current operation to finish' }
   }
 
   if (!isBattleNetInstalled()) {
-    setProgress('starting', 2, 'Iniciando…')
+    setProgress('starting', 2, 'Starting...')
     const started = beginInstallPipeline()
     if (!started.success) return started
 
@@ -513,14 +514,14 @@ export async function play(): Promise<{ success: boolean; message: string }> {
       await new Promise((r) => setTimeout(r, 400))
     }
 
-    const result = lastInstallResult ?? { success: false, message: 'Instalación sin resultado' }
+    const result = lastInstallResult ?? { success: false, message: 'Installation produced no result' }
     if (!result.success) return result
 
     if (!isBattleNetInstalled()) {
       return {
         success: true,
         message:
-          'Se abrió Battle.net en una ventana de tu Mac. Completa el asistente de Blizzard y vuelve a pulsar «Abrir Battle.net».'
+          'Battle.net opened in a window on your Mac. Complete the Blizzard wizard and click Open Battle.net again.'
       }
     }
   }
@@ -530,7 +531,7 @@ export async function play(): Promise<{ success: boolean; message: string }> {
 
 export async function launch(): Promise<{ success: boolean; message: string }> {
   if (launchRunning) {
-    return { success: false, message: 'Lanzamiento en curso — espera unos segundos' }
+    return { success: false, message: 'Launch in progress — wait a few seconds' }
   }
   launchRunning = true
 
@@ -544,12 +545,12 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     if (!isBattleNetInstalled()) {
       return {
         success: false,
-        message: 'Battle.net aún no está listo. Pulsa «Abrir Battle.net» para instalarlo automáticamente.'
+        message: 'Battle.net is not ready yet. Click Open Battle.net to install it automatically.'
       }
     }
 
     if (isBattleNetWineProcessRunning()) {
-      log('Battle.net abierto — cierre y reparación completa del Agent (BLZBNTBNA00000005)…')
+      log('Battle.net open — closing and fully repairing Agent (BLZBNTBNA00000005)...')
       stopBattleNetAgentProcesses()
       stopBattleNetClientProcesses()
       stopWineProcesses(BATTLENET_BOTTLE, { wait: false })
@@ -562,7 +563,7 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
 
     let [depsOk, depsMsg] = await ensureLaunchDependencies(log)
     if (!depsOk) {
-      log('Reintentando DLL VC++/UCRT…')
+      log('Retrying VC++/UCRT DLL...')
       const [retryOk, retryMsg] = await ensureBattleNetBottleDeps(log)
       if (!retryOk) return { success: false, message: retryMsg }
       ;[depsOk, depsMsg] = await ensureLaunchDependencies(log)
@@ -582,7 +583,7 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     if (!exe) {
       return {
         success: false,
-        message: 'No encontramos Battle.net. Pulsa «Abrir Battle.net» para reinstalarlo.'
+        message: 'Battle.net not found. Click Open Battle.net to reinstall it.'
       }
     }
 
@@ -614,12 +615,12 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
       return {
         success: false,
         message:
-          'El actualizador de Battle.net no está listo. Pulsa Reparar en Ajustes → Avanzado o completa la instalación en Wine.'
+          'The Battle.net Update Agent is not ready. Click Repair in Settings → Advanced or complete the installation in Wine.'
       }
     }
 
     const exeName = exe.split(/[/\\]/).pop() ?? 'Battle.net.exe'
-    log(`Iniciando ${exeName}…`)
+    log(`Starting ${exeName}...`)
     // CEF/Chromium flags for the client (CEF 108). All four are required for the
     // window to show and the web content to paint on Apple Silicon:
     // - `--use-angle=vulkan`: ANGLE over Vulkan -> winevulkan -> MoltenVK (Metal).
@@ -654,13 +655,19 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
       return {
         success: false,
         message:
-          'Battle.net se cerró al arrancar. Pulsa otra vez «Abrir Battle.net»; si sigue, revisa Ajustes → Avanzado.'
+          'Battle.net closed on startup. Click Open Battle.net again; if it persists, check Settings → Advanced.'
       }
     }
 
+    // Start watching for game processes launched by Battle.net.
+    // When the user clicks "Play" inside Battle.net, the game inherits the
+    // client's wined3d environment (not D3DMetal/DXMT). The watcher detects the
+    // process, kills it, and relaunches it with the correct profile.
+    startGameWatcher()
+
     return {
       success: true,
-      message: 'Battle.net está abierto. Instala y lanza juegos desde la biblioteca de Blizzard.'
+      message: 'Battle.net is open. Install and launch games from the Blizzard library.'
     }
   } finally {
     launchRunning = false
@@ -672,11 +679,11 @@ export function checkClient(): { success: boolean; message: string } {
   fixBrokenUpdateFolders()
   pushStatus()
   if (isClientComplete()) {
-    return { success: true, message: 'Cliente completo — puedes lanzar' }
+    return { success: true, message: 'Client complete — ready to launch' }
   }
   return {
     success: false,
-    message: 'Cliente incompleto. Abre el asistente Blizzard o pulsa «Completar instalación».'
+    message: 'Client incomplete. Open the Blizzard wizard or click Complete Installation.'
   }
 }
 
@@ -686,6 +693,7 @@ export function cancel(): { success: boolean; message: string } {
   stopBattleNetAgentProcesses()
   stopBattleNetClientProcesses()
   stopAgentPortBridge()
+  stopGameWatcher()
   stopWineForWinetricks(BATTLENET_BOTTLE)
   installRunning = false
   repairRunning = false
@@ -695,7 +703,7 @@ export function cancel(): { success: boolean; message: string } {
   pushStatus()
   return {
     success: true,
-    message: 'Instalación cancelada. Pulsa Empezar para reintentar (Agent reparado automáticamente).'
+    message: 'Installation cancelled. Click Start to retry (Agent repaired automatically).'
   }
 }
 

@@ -15,12 +15,12 @@ export interface ReconcileResult {
   backupDir?: string
 }
 
-/** Ficheros de registro de un prefix Wine. */
+/** Wine prefix registry files. */
 const REG_FILES = ['system.reg', 'user.reg', 'userdef.reg'] as const
 
 /**
- * Copia los `.reg` del bottle a `.reg-backup-<timestamp>` dentro del prefix.
- * Devuelve la ruta del backup (o null si no había registros que copiar).
+ * Copies the bottle's `.reg` files to `.reg-backup-<timestamp>` inside the prefix.
+ * Returns the backup path, or null if there were no registry files to copy.
  */
 export function backupBottleRegistry(bottleName: string): string | null {
   const prefix = getBottlePath(bottleName)
@@ -39,7 +39,7 @@ export function backupBottleRegistry(bottleName: string): string | null {
   return backupDir
 }
 
-/** ¿El prefix tiene un `drive_c` ya inicializado (no es una carpeta vacía)? */
+/** Whether the prefix has an initialized `drive_c` (not an empty folder). */
 export function bottlePrefixInitialized(bottleName: string): boolean {
   const driveC = join(getBottlePath(bottleName), 'drive_c')
   if (!existsSync(driveC)) return false
@@ -51,11 +51,11 @@ export function bottlePrefixInitialized(bottleName: string): boolean {
 }
 
 /**
- * Reconcilia un prefix que pudo quedar incoherente tras mezclar versiones de Wine
- * (síntoma documentado en docs/battlenet-wine-problemas-y-roadmap.md §4): para
- * TODOS los wineserver conocidos, hace backup del registro y lanza un único
- * `wineboot --update` con el **Wine activo** (Wine 11 «Battle.net ready»). No
- * borra `drive_c`, así que conserva el cliente y los juegos instalados.
+ * Reconciles a prefix that may have become inconsistent after mixing Wine versions
+ * (documented symptom in docs/battlenet-wine-problemas-y-roadmap.md §4): stops all
+ * known wineservers, backs up the registry, and runs a single `wineboot --update`
+ * with the **active Wine** (Wine 11 "Battle.net ready"). Does not delete `drive_c`,
+ * so the client and installed games are preserved.
  */
 export async function reconcileBottleWithActiveWine(
   bottleName: string,
@@ -63,7 +63,7 @@ export async function reconcileBottleWithActiveWine(
 ): Promise<ReconcileResult> {
   const prefix = getBottlePath(bottleName)
   if (!existsSync(prefix)) {
-    return { ok: false, message: `El bottle «${bottleName}» no existe.` }
+    return { ok: false, message: `Bottle "${bottleName}" does not exist.` }
   }
 
   let wine: string
@@ -75,20 +75,20 @@ export async function reconcileBottleWithActiveWine(
       message:
         e instanceof Error
           ? e.message
-          : 'Wine de Kalimotxo no está listo. Completa la descarga del runtime.'
+          : 'Kalimotxo Wine is not ready. Complete the runtime download.'
     }
   }
 
-  // 1) Parar TODO Wine del prefix (todos los wineserver conocidos + espera).
-  log('Cerrando procesos Wine del bottle…')
+  // 1) Stop ALL Wine for this prefix (all known wineservers + wait).
+  log('Closing Wine processes for the bottle...')
   stopWineProcesses(bottleName, { wait: true })
 
-  // 2) Backup del registro antes de tocar nada.
+  // 2) Back up the registry before touching anything.
   const backupDir = backupBottleRegistry(bottleName)
-  if (backupDir) log(`Registro respaldado en ${backupDir}`)
+  if (backupDir) log(`Registry backed up at ${backupDir}`)
 
-  // 3) Un único wineboot --update con el Wine activo para reconciliar el prefix.
-  log('Reconciliando el prefix con el Wine activo (wineboot --update)…')
+  // 3) Single wineboot --update with the active Wine to reconcile the prefix.
+  log('Reconciling prefix with the active Wine (wineboot --update)...')
   const env = buildEnv(bottleName)
   const res = spawnSync(wine, ['wineboot', '--update'], {
     env,
@@ -99,24 +99,24 @@ export async function reconcileBottleWithActiveWine(
   if (res.error) {
     return {
       ok: false,
-      message: `wineboot --update falló: ${res.error.message}`,
+      message: `wineboot --update failed: ${res.error.message}`,
       backupDir: backupDir ?? undefined
     }
   }
   if (typeof res.status === 'number' && res.status !== 0) {
     return {
       ok: false,
-      message: `wineboot --update terminó con código ${res.status}. Revisa el log.`,
+      message: `wineboot --update exited with code ${res.status}. Check the log.`,
       backupDir: backupDir ?? undefined
     }
   }
 
-  // 4) Dejar el prefix en reposo (wineserver se apaga solo tras el update).
+  // 4) Leave the prefix at rest (wineserver shuts down automatically after update).
   stopWineProcesses(bottleName, { wait: false })
 
   return {
     ok: true,
-    message: 'Prefix reconciliado con el Wine activo.',
+    message: 'Prefix reconciled with the active Wine.',
     backupDir: backupDir ?? undefined
   }
 }

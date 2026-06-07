@@ -3,7 +3,7 @@ import { join } from 'path'
 import { D3DMETAL_DIR, DXMT_DIR, DXVK_DIR, WINE_DIR } from '../config/paths'
 import { migrateLegacyInstall, resolveActiveWineRoot } from '../wine/manager/installed'
 
-/** Localiza wine64 o wine bajo un árbol (bundle .app o layout plano). */
+/** Locates wine64 or wine under a directory tree (.app bundle or flat layout). */
 export function findWine64InTree(root: string): string | null {
   if (!existsSync(root)) return null
 
@@ -44,7 +44,7 @@ export function findWine64InTree(root: string): string | null {
   return null
 }
 
-/** Comprueba carpetas de DLL de Windows (layout plano o un nivel anidado, p. ej. dxmt/v0.74/). */
+/** Checks for Windows DLL folders (flat layout or one level nested, e.g. dxmt/v0.74/). */
 export function componentHasDllFolders(
   base: string,
   x64Folder: string,

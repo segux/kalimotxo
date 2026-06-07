@@ -15,13 +15,13 @@ export async function repairRuntime(): Promise<{ success: boolean; message: stri
 
   try {
     stopWineProcesses(BATTLENET_BOTTLE, { wait: false })
-    steps.push('Procesos Wine detenidos')
+    steps.push('Wine processes stopped')
   } catch {
     /* ignore */
   }
 
   const linked = resolveDxmtCacheArchive(CACHE_DIR)
-  if (linked) steps.push('Caché DXMT enlazada')
+  if (linked) steps.push('DXMT cache linked')
 
   if (!isDxmtInstalled()) {
     const r = await downloadComponent('dxmt')
@@ -55,7 +55,7 @@ export async function repairRuntime(): Promise<{ success: boolean; message: stri
   return {
     success: ok,
     message: ok
-      ? `Runtime reparado. ${summary}`
-      : `Runtime incompleto. ${summary} — ${steps.join(' · ')}`
+      ? `Runtime repaired. ${summary}`
+      : `Incomplete runtime. ${summary} — ${steps.join(' · ')}`
   }
 }

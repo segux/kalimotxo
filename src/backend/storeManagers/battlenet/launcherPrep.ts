@@ -9,7 +9,8 @@ const GRAPHICS_STRIP = new Set([
   'DYLD_FRAMEWORK_PATH',
   'DYLD_LIBRARY_PATH',
   'DXVK_HUD',
-  'DXVK_ASYNC'
+  'DXVK_ASYNC',
+  'WINE_DISABLE_VA_ALLOC'
 ])
 const GRAPHICS_DLL = new Set(['d3d11', 'd3d12', 'd3d10core', 'd3d9', 'dxgi'])
 

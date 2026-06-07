@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
 import { dirname, join } from 'path'
 
-import { DXMT_DIR } from '../config/paths'
+import { DXMT_DIR, D3DMETAL_DIR } from '../config/paths'
 import { resolveBundledGnutlsDir, resolveWineExternalDir } from './wineEnv'
 import { resolveBattleNetWineInstallation } from './compatibilityLayers'
 import type { WineInstallation } from './types'
@@ -59,6 +59,19 @@ function resolveMoltenVkSource(installation: WineInstallation): string | null {
   return null
 }
 
+/** `libd3dshared.dylib` from D3DMetal (GPTK) if present in the runtime. */
+function resolveD3dSharedSource(installation: WineInstallation): string | null {
+  const ext = resolveWineExternalDir(installation)
+  if (ext) {
+    const lib = join(ext, 'libd3dshared.dylib')
+    if (existsSync(lib)) return lib
+  }
+  // Also check next to D3DMetal.framework in the runtime
+  const d3dmetalShared = join(D3DMETAL_DIR, 'libd3dshared.dylib')
+  if (existsSync(d3dmetalShared)) return d3dmetalShared
+  return null
+}
+
 function copyIfDifferent(src: string, dest: string): boolean {
   try {
     if (existsSync(dest) && statSync(dest).size === statSync(src).size) return false
@@ -89,6 +102,14 @@ export function ensureBattleNetWineRuntimeLibs(
   const moltenSrc = resolveMoltenVkSource(installation)
   if (moltenSrc && copyIfDifferent(moltenSrc, join(unix, 'libMoltenVK.dylib'))) {
     changes.push('libMoltenVK.dylib')
+  }
+
+  // libd3dshared.dylib (D3DMetal): without it D3DMetal can't initialize.
+  // CrossOver 26.1 sets CX_APPLEGPTK_LIBD3DSHARED_PATH but macOS strips DYLD_*
+  // in child processes, so we copy it to where wine's D3DMetal loader expects it.
+  const d3dSharedSrc = resolveD3dSharedSource(installation)
+  if (d3dSharedSrc && copyIfDifferent(d3dSharedSrc, join(unix, 'libd3dshared.dylib'))) {
+    changes.push('libd3dshared.dylib')
   }
 
   // gnutls + deps (TLS): the bundle is self-contained (@loader_path between the

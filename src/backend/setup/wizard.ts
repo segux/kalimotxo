@@ -14,7 +14,7 @@ export interface SetupWizardState {
   system_ready: boolean
   runtime_ready: boolean
   wizard_complete: boolean
-  /** Usuario eligió explorar la app sin terminar el asistente. */
+  /** User chose to explore the app without completing the wizard. */
   wizard_skipped: boolean
   checks: ReturnType<typeof checkAll>
   download_status: Record<string, boolean>
@@ -41,7 +41,7 @@ export function skipSetupWizard(): { success: boolean; message: string } {
 }
 
 export interface RunSetupWizardOptions {
-  /** Tras el runtime, lanza la instalación automatizada de Battle.net (asistente Blizzard aparte). */
+  /** After the runtime, launch the automated Battle.net installation (Blizzard wizard runs separately). */
   installBattleNet?: boolean
 }
 
@@ -54,13 +54,13 @@ export async function runSetupWizard(
   sendFrontendMessage('setupProgress', {
     component: 'system',
     percent: 0,
-    message: 'Comprobando dependencias del sistema…'
+    message: 'Checking system dependencies…'
   })
 
   sendFrontendMessage('setupProgress', {
     component: 'system',
     percent: 10,
-    message: 'Preparando herramientas y runtime…'
+    message: 'Preparing tools and runtime…'
   })
 
   const [rtOk, rtMsg] = await ensureRuntimeReady(log)
@@ -76,20 +76,20 @@ export async function runSetupWizard(
   sendFrontendMessage('setupProgress', {
     component: 'system',
     percent: 100,
-    message: 'Sistema y runtime listos'
+    message: 'System and runtime ready'
   })
 
   sendFrontendMessage('setupProgress', {
     component: 'runtime',
     percent: 100,
-    message: 'Runtime Kalimotxo listo'
+    message: 'Kalimotxo runtime ready'
   })
 
   const state = getSetupWizardState()
   if (!state.wizard_complete) {
     return {
       success: false,
-      message: 'Setup incompleto. Revisa cabextract, GStreamer y las descargas.'
+      message: 'Incomplete setup. Check cabextract, GStreamer and the downloads.'
     }
   }
 
@@ -99,7 +99,7 @@ export async function runSetupWizard(
       percent: 0,
       message: 'setup.progress.battlenetStarting'
     })
-    log('Instalando Battle.net (Wine, dependencias, instalador Blizzard)…')
+    log('Installing Battle.net (Wine, dependencies, Blizzard installer)…')
     const bn = await runInstallAndWait()
     sendFrontendMessage('setupProgress', {
       component: 'battlenet',
@@ -115,9 +115,9 @@ export async function runSetupWizard(
     return {
       success: true,
       message:
-        'Kalimotxo instaló Battle.net. Si aparece una ventana Wine, completa el asistente Blizzard para descargar juegos.'
+        'Kalimotxo installed Battle.net. If a Wine window appears, complete the Blizzard wizard to download games.'
     }
   }
 
-  return { success: true, message: 'Kalimotxo está listo. Ya puedes instalar Battle.net.' }
+  return { success: true, message: 'Kalimotxo is ready. You can now install Battle.net.' }
 }

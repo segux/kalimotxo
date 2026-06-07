@@ -5,7 +5,7 @@
     "exe": "Program Files (x86)/Battle.net/Battle.net Launcher.exe",
     "installer_url": "https://downloader.battle.net/download/getInstallerForGame?os=win&gameProgram=BATTLENET_APP&version=Live",
     "backend": "wined3d",
-    "sync": "esync",
+    "sync": "msync",
     "windows_version": "win10",
     "env": {
       "WINE_SIMULATE_WRITECOPY": "1"
@@ -24,12 +24,8 @@
     "windows_version": "win10",
     "env": {},
     "deps": ["vcrun2019"],
-    "dll_overrides": {
-      "d3d11": "native",
-      "d3d12": "native",
-      "dxgi": "native"
-    },
-    "notes": "Requires D3DMetal for DirectX 12 support. Approximately 80GB disk space needed. Disable ray tracing for better performance.",
+    "dll_overrides": {},
+    "notes": "Requires D3DMetal for DirectX 12 support. Approximately 80GB disk space needed. Disable ray tracing for better performance. D3DMetal uses Wine builtins for d3d12/dxgi.",
     "rating": 4
   },
   "wow": {
@@ -85,16 +81,12 @@
     "publisher": "Blizzard Entertainment",
     "exe": "Program Files (x86)/Diablo II Resurrected/D2R.exe",
     "backend": "d3dmetal",
-    "sync": "esync",
+    "sync": "msync",
     "windows_version": "win10",
     "env": {},
     "deps": ["vcrun2019"],
-    "dll_overrides": {
-      "d3d11": "native",
-      "d3d12": "native",
-      "dxgi": "native"
-    },
-    "notes": "Uses DirectX 12 renderer. D3DMetal required.",
+    "dll_overrides": {},
+    "notes": "Uses DirectX 12 renderer. D3DMetal required. D3DMetal uses Wine builtins for d3d12/dxgi (not native overrides like DXMT).",
     "rating": 4
   },
   "starcraft2": {
@@ -138,12 +130,8 @@
     "windows_version": "win10",
     "env": {},
     "deps": ["vcrun2019"],
-    "dll_overrides": {
-      "d3d11": "native",
-      "d3d12": "native",
-      "dxgi": "native"
-    },
-    "notes": "WARNING: Ricochet anti-cheat does NOT work under Wine. Single-player/campaign only.",
+    "dll_overrides": {},
+    "notes": "WARNING: Ricochet anti-cheat does NOT work under Wine. Single-player/campaign only. D3DMetal uses Wine builtins for d3d12/dxgi.",
     "rating": 2
   }
 }

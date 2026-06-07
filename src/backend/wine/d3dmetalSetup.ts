@@ -285,7 +285,7 @@ function runBrew(
   onLog?: (line: string) => void
 ): Promise<[boolean, string]> {
   const brew = getBrewPath()
-  if (!brew) return Promise.resolve([false, 'Homebrew no está instalado'])
+  if (!brew) return Promise.resolve([false, 'Homebrew is not installed'])
 
   const lines: string[] = []
   const proc = spawn(brew, args, {
@@ -315,7 +315,7 @@ function runBrew(
   })
 }
 
-/** Cask Gcenx (GPTK 3) — legalmente lo instala Homebrew en tu Mac, no lo redistribuimos nosotros. */
+/** Gcenx cask (GPTK 3) — Homebrew installs it on your Mac legally; we do not redistribute it. */
 export async function installD3dmetalViaHomebrewCask(
   onLog?: (line: string) => void
 ): Promise<[boolean, string]> {
@@ -324,10 +324,10 @@ export async function installD3dmetalViaHomebrewCask(
   if (fromApp[0]) return fromApp
 
   if (!getBrewPath()) {
-    return [false, 'Se requiere Homebrew para instalar Game Porting Toolkit automáticamente']
+    return [false, 'Homebrew is required to install Game Porting Toolkit automatically']
   }
 
-  log('Instalando Game Porting Toolkit (Gcenx) vía Homebrew…')
+  log('Installing Game Porting Toolkit (Gcenx) via Homebrew...')
   const [tapOk, tapMsg] = await runBrew(['tap', GCENX_WINE_TAP], log)
   if (!tapOk) return [false, `brew tap: ${tapMsg.slice(0, 400)}`]
 
@@ -400,7 +400,7 @@ export async function ensureD3dmetal(
   ]
 }
 
-/** Síncrono: solo fuentes locales rápidas (sin Homebrew). */
+/** Synchronous: fast local sources only (no Homebrew). */
 export function ensureD3dmetalForDx12Games(): [boolean, string] {
   if (isD3dmetalRuntimeReady()) return [true, 'D3DMetal listo']
 
@@ -420,6 +420,6 @@ export function ensureD3dmetalForDx12Games(): [boolean, string] {
 
   return [
     false,
-    'Falta D3DMetal (GPTK). Kalimotxo lo instalará en el asistente si tienes CrossOver, GPTK o Homebrew; o pulsa «Instalar D3DMetal» en Battle.net.'
+    'D3DMetal (GPTK) is missing. Kalimotxo will install it in the wizard if you have CrossOver, GPTK or Homebrew; or click Install D3DMetal in Battle.net.'
   ]
 }

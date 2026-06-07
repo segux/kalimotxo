@@ -37,11 +37,11 @@ async function downloadFile(
   onProgress?: (pct: number) => void
 ): Promise<void> {
   const res = await fetch(url, { redirect: 'follow' })
-  if (!res.ok) throw new Error(`HTTP ${res.status} al descargar`)
+  if (!res.ok) throw new Error(`HTTP ${res.status} downloading`)
 
   const expected = Number(res.headers.get('content-length') || 0)
   const reader = res.body?.getReader()
-  if (!reader) throw new Error('Respuesta sin contenido')
+  if (!reader) throw new Error('Response has no body')
 
   const chunks: Buffer[] = []
   let received = 0
@@ -58,10 +58,10 @@ async function downloadFile(
 
   const data = Buffer.concat(chunks)
   if (expected > 0 && received !== expected) {
-    throw new Error(`Descarga incompleta (${received} / ${expected} bytes)`)
+    throw new Error(`Incomplete download (${received} / ${expected} bytes)`)
   }
   if (received < 1024) {
-    throw new Error('Descarga demasiado pequeña (archivo inválido)')
+    throw new Error('Download too small (invalid file)')
   }
 
   await writeFile(dest, data)
@@ -95,7 +95,7 @@ async function extractTarGz(archive: string, dest: string, verifyDxmt = false): 
   if (!valid) {
     rmSync(archive, { force: true })
     throw new Error(
-      'Archivo .tar.gz corrupto o incompleto en caché. Vuelve a pulsar Descargar (se borrará y repetirá).'
+      'Cached .tar.gz is corrupt or incomplete. Click Download again (it will be deleted and retried).'
     )
   }
   mkdirSync(dest, { recursive: true })
@@ -106,7 +106,7 @@ async function extractTarGz(archive: string, dest: string, verifyDxmt = false): 
     const msg = e instanceof Error ? e.message : String(e)
     throw new Error(
       msg.includes('truncated')
-        ? 'DXMT: archivo dañado durante la descarga. Pulsa DXMT de nuevo (usará curl).'
+        ? 'DXMT: file corrupted during download. Click DXMT again (will use curl).'
         : msg
     )
   }
@@ -132,13 +132,13 @@ export async function downloadComponent(component: string): Promise<{ success: b
       mkdirSync(WINE_DIR, { recursive: true })
       await extractTarXz(archive, WINE_DIR)
       if (!findWine64InTree(WINE_DIR)) {
-        return { success: false, message: 'Wine extraído pero no se encontró wine/wine64 en el bundle' }
+        return { success: false, message: 'Wine extracted but wine/wine64 not found in the bundle' }
       }
       progress(100, 'setup.progress.wineInstalled')
     } else if (component === 'dxmt') {
       if (isDxmtInstalled()) {
         progress(100, 'setup.progress.dxmtInstalled')
-        return { success: true, message: 'DXMT ya instalado' }
+        return { success: true, message: 'DXMT already installed' }
       }
       const archive = join(CACHE_DIR, 'dxmt.tar.gz')
       resolveDxmtCacheArchive(CACHE_DIR)
@@ -152,21 +152,21 @@ export async function downloadComponent(component: string): Promise<{ success: b
         } catch (e) {
           rmSync(archive, { force: true })
           const msg = e instanceof Error ? e.message : String(e)
-          return { success: false, message: `DXMT: fallo al descargar (${msg})` }
+          return { success: false, message: `DXMT: download failed (${msg})` }
         }
         progress(90, 'setup.progress.downloadingDxmtPct')
         if (!isDxmtArchiveComplete(archive)) {
           rmSync(archive, { force: true })
           return {
             success: false,
-            message: 'DXMT: descarga incompleta o corrupta. Comprueba la red y reintenta.'
+            message: 'DXMT: incomplete or corrupt download. Check your network and retry.'
           }
         }
       }
       progress(50, 'setup.progress.extractingDxmt')
       await extractTarGz(archive, DXMT_DIR, true)
       if (!isDxmtInstalled()) {
-        return { success: false, message: 'DXMT extraído pero no se encontraron carpetas de DLL' }
+        return { success: false, message: 'DXMT extracted but DLL folders not found' }
       }
       progress(100, 'setup.progress.dxmtInstalled')
     } else if (component === 'dxvk') {
@@ -239,13 +239,13 @@ export async function downloadAll(): Promise<{ success: boolean; message: string
   })
 
   if (!isSetupComplete()) {
-    return { success: false, message: 'Runtime incompleto tras las descargas' }
+    return { success: false, message: 'Incomplete runtime after downloads' }
   }
   if (!d3dOk) {
     return {
       success: true,
-      message: `Runtime listo (Wine/DXMT). D3DMetal: ${d3dMsg}`
+      message: `Runtime ready (Wine/DXMT). D3DMetal: ${d3dMsg}`
     }
   }
-  return { success: true, message: 'Runtime listo (incluye D3DMetal)' }
+  return { success: true, message: 'Runtime ready (includes D3DMetal)' }
 }

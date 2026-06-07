@@ -36,7 +36,7 @@ function runBrew(args: string[], onLog?: (line: string) => void): Promise<[boole
   return new Promise(async (resolve) => {
     const brew = await getBrewPath()
     if (!brew) {
-      resolve([false, 'Homebrew no está instalado'])
+      resolve([false, 'Homebrew is not installed'])
       return
     }
     const lines: string[] = []
@@ -65,7 +65,7 @@ function runBrew(args: string[], onLog?: (line: string) => void): Promise<[boole
   })
 }
 
-/** Ejecuta un comando con privilegios de administrador (diálogo macOS). */
+/** Runs a command with administrator privileges (macOS dialog). */
 function runWithAdmin(shellCommand: string): Promise<[boolean, string]> {
   const escaped = shellCommand.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   return new Promise((resolve) => {
@@ -95,9 +95,9 @@ export async function isHomebrewInstalled(): Promise<boolean> {
 }
 
 export async function installHomebrew(onLog?: (line: string) => void): Promise<[boolean, string]> {
-  if (await isHomebrewInstalled()) return [true, 'Homebrew ya instalado']
+  if (await isHomebrewInstalled()) return [true, 'Homebrew already installed']
   const log = onLog ?? (() => {})
-  log('Instalando Homebrew (puede pedir tu contraseña de macOS)…')
+  log('Installing Homebrew (may ask for your macOS password)…')
   const cmd =
     'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
   const [ok, msg] = await runWithAdmin(cmd)
@@ -107,18 +107,18 @@ export async function installHomebrew(onLog?: (line: string) => void): Promise<[
   return [
     false,
     msg ||
-      'No se pudo instalar Homebrew. Instálalo desde https://brew.sh y vuelve a pulsar Instalar todo.'
+      'Could not install Homebrew. Install it from https://brew.sh and click Install All again.'
   ]
 }
 
 export async function installRosetta(onLog?: (line: string) => void): Promise<[boolean, string]> {
-  if (checkRosetta().installed) return [true, 'Rosetta ya instalada']
+  if (checkRosetta().installed) return [true, 'Rosetta already installed']
   const log = onLog ?? (() => {})
-  log('Instalando Rosetta 2…')
+  log('Installing Rosetta 2…')
   const [ok, msg] = await runWithAdmin(
     'softwareupdate --install-rosetta --agree-to-license'
   )
-  if (ok || checkRosetta().installed) return [true, 'Rosetta instalada']
+  if (ok || checkRosetta().installed) return [true, 'Rosetta installed']
   return [false, msg]
 }
 
@@ -127,33 +127,33 @@ export function isSystemDepsReady(): boolean {
 }
 
 export async function ensureCabextract(onLog?: (line: string) => void): Promise<[boolean, string]> {
-  if (cabextractAvailable()) return [true, 'cabextract disponible']
+  if (cabextractAvailable()) return [true, 'cabextract available']
 
   const log = onLog ?? (() => {})
-  if (copyCabextractFromSystem()) return [true, 'cabextract copiado al runtime de Kalimotxo']
+  if (copyCabextractFromSystem()) return [true, 'cabextract copied to Kalimotxo runtime']
 
-  if (await downloadCabextractBottle(log)) return [true, 'cabextract descargado por Kalimotxo']
+  if (await downloadCabextractBottle(log)) return [true, 'cabextract downloaded by Kalimotxo']
 
   if (await isHomebrewInstalled()) {
-    logInfo('Instalando cabextract vía Homebrew…')
+    logInfo('Installing cabextract via Homebrew…')
     const [ok, msg] = await runBrew(['install', 'cabextract'], onLog)
     if (ok && copyCabextractFromSystem()) return [true, 'cabextract instalado con Homebrew']
     if (ok) return [true, 'cabextract instalado con Homebrew']
     return [false, msg]
   }
 
-  return [false, 'No se pudo obtener cabextract. Instala Homebrew o pulsa Instalar todo.']
+  return [false, 'Could not obtain cabextract. Install Homebrew or click Install All.']
 }
 
 export async function ensureGstreamer(onLog?: (line: string) => void): Promise<[boolean, string]> {
-  if (gstreamerAvailable()) return [true, 'GStreamer disponible']
+  if (gstreamerAvailable()) return [true, 'GStreamer available']
 
   const log = onLog ?? (() => {})
   if (!(await isHomebrewInstalled())) {
-    return [false, 'GStreamer requiere Homebrew. Pulsa «Instalar todo» primero.']
+    return [false, 'GStreamer requires Homebrew. Click "Install All" first.']
   }
 
-  logInfo('Instalando GStreamer vía Homebrew…')
+  logInfo('Installing GStreamer via Homebrew…')
   const [ok, msg] = await runBrew(
     ['install', 'gstreamer', 'gst-plugins-base', 'gst-plugins-good', 'gst-libav'],
     onLog
@@ -161,7 +161,7 @@ export async function ensureGstreamer(onLog?: (line: string) => void): Promise<[
   if (gstreamerAvailable() || checkGstLegacy().installed) {
     return [true, 'GStreamer instalado']
   }
-  if (ok) return [true, 'GStreamer instalado (reinicia Kalimotxo si no se detecta)']
+  if (ok) return [true, 'GStreamer installed (restart Kalimotxo if not detected)']
   return [false, msg]
 }
 
@@ -183,5 +183,5 @@ export async function installSystemDependencies(
   const [gstOk, gstMsg] = await ensureGstreamer(log)
   if (!gstOk) return { success: false, message: gstMsg }
 
-  return { success: true, message: 'Dependencias del sistema listas' }
+  return { success: true, message: 'System dependencies ready' }
 }

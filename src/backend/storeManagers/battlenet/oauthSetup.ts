@@ -20,7 +20,7 @@ export function hostnameResolvesToLoopback(): { ok: boolean; hostname: string; h
     return {
       ok: false,
       hostname,
-      hint: `Añade «127.0.0.1 ${hostname}» a /etc/hosts (recomendado para login Battle.net en Wine).`
+      hint: `Add "127.0.0.1 ${hostname}" to /etc/hosts (recommended for Battle.net login in Wine).`
     }
   } catch {
     return { ok: true, hostname: '' }
@@ -58,5 +58,5 @@ export function prepareBattleNetOAuthForMac(log?: (m: string) => void): void {
   log?.(`OAuth browser: ${script}`)
   applyBattleNetUrlProtocols()
   const host = hostnameResolvesToLoopback()
-  if (!host.ok && host.hint) log?.(`Aviso hostname: ${host.hint}`)
+  if (!host.ok && host.hint) log?.(`Hostname warning: ${host.hint}`)
 }

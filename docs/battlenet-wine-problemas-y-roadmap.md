@@ -318,6 +318,8 @@ Pendiente: validar el flujo **completo desde la UI de Kalimotxo** (botón «Abri
 | `CURL error 35` / schannel `SECPKG_NOT_FOUND` | `DYLD_*` borrado → sin gnutls | Bundle gnutls → `lib/wine/x86_64-unix/` |
 | `AgentClient CURL error=7` / `BLZBNTBNA00000005` | Cliente→1120 fijo; Agent→puerto de `Agent.dat` | Puente 1120 → `Agent.dat` (`agentPortBridge`) |
 | Agent se apaga a los 20 s | Cliente nunca conectó (ver arriba) | Puente 1120 + libs |
+| `err:sync:msync_init Server is running with WINEMSYNC but this process is not` | Juego hijo hereda esync; wineserver corre con msync | Usar `msync` para Battle.net (fuerza `WINEMSYNC=1`); no borrar `WINEMSYNC`/`WINEESYNC` en `battleNetLaunch` |
+| D2R crash `assertion failure exception` | Anti-cheat/SEH o D3DMetal no carga correctamente | Asegurar `libd3dshared.dylib` copiado a `lib/wine/x86_64-unix/` + `DOTNET_EnableWriteXorExecute=0` |
 | «Actualizando Wine» infinito | Cambio de Wine en prefix | Un Wine + wineboot |
 | Muchos `wine`/`Agent` | Sesiones de prueba | Matar wineserver entre intentos |
 
@@ -355,7 +357,9 @@ Lanzamiento manual con Wine D4Mac (extraído del `.zip` de releases) — **solo 
 ## Historial de este documento
 
 | Fecha | Notas |
-|-------|--------|
+|-------|-------|
+| 2026-06-07 | **Fix sincronización:** Battle.net y D2R pasan a `sync: "msync"` (antes `esync`). El wineserver del cliente necesita `WINEMSYNC=1` para que los juegos hijos (D2R) no crashen con `err:sync:msync_init`. `wineEnv.ts` ya no borra `WINEMSYNC`/`WINEESYNC` en modo `battleNetLaunch`. |
+| 2026-06-07 (noche) | **Investigación CrossOver 26.1.0 + D2R funcional:** Se descubrió que CrossOver usa `WINEMSYNC=1` (msync) para todo, tiene D3DMetal builtins parcheados en `lib/wine/x86_64-windows/`, y D2R se lanza con `-uid osi`. Implementado en Kalimotxo: copiar `libd3dshared.dylib` a `lib/wine/x86_64-unix/` (igual que MoltenVK/gnutls), añadir `DOTNET_EnableWriteXorExecute=0` para .NET bajo Rosetta. |
 | 2026-06-03 | Primera versión tras depuración intensiva (instalación OK, arranque cliente en progreso; validación manual con Wine D4Mac). |
 | 2026-06-04 (noche) | **Los 3 bloqueos resueltos → login funcional + Agent conectado.** Causa raíz: macOS borra `DYLD_*` en los hijos Wine (sin MoltenVK ni gnutls). Fix: libs a `lib/wine/x86_64-unix/` (`wineRuntimeLibs.ts`) + puente TCP 1120→`Agent.dat` (`agentPortBridge.ts`), cableados en `service.launch()`. Corrige el supuesto «GPU/TLS resueltos» de la tarde (solo iban con el Wine de `D4Mac.app`, no con la copia registrada). |
 | 2026-06-04 (tarde) | **Cadena de causa raíz del arranque aislada y 2/3 bloqueos resueltos** (ver sección «Sesión 2026-06-04 (tarde)»): GPU/ANGLE (`vulkan-1=b` + `--use-angle=vulkan --disable-gpu-compositing` → la ventana se crea) y TLS (gnutls x86_64 de Crossover en `DYLD_FALLBACK` → Agent HTTPS OK). **Bloqueo restante: IPC cliente↔Agent local** (`CURL error=7` / `No Connected Clients`). Cambios en `wineEnv.ts` y `service.ts` + tests. |

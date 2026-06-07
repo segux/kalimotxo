@@ -97,7 +97,7 @@ function applyD3dmetalToBottle(bottleName: string): [boolean, string] {
   if (!existsSync(frameworkSrc)) {
     return [
       false,
-      'D3DMetal no instalado. Importa el GPTK (DMG de Apple) o instala CrossOver y usa «Importar D3DMetal» en Ajustes.'
+      'D3DMetal not installed. Import GPTK (Apple DMG) or install CrossOver and use Import D3DMetal in Settings.'
     ]
   }
 
@@ -116,7 +116,7 @@ function applyD3dmetalToBottle(bottleName: string): [boolean, string] {
   const cfg = getBottleConfig(bottleName)
   cfg.graphics_backend = 'd3dmetal'
   saveBottleConfig(bottleName, cfg)
-  return [true, 'D3DMetal aplicado a la botella (DX12)']
+  return [true, 'D3DMetal applied to bottle (DX12)']
 }
 
 function applyDllBackend(
@@ -140,7 +140,7 @@ function applyDllBackend(
   const copied: string[] = []
   if (x64) copied.push(...copyDlls(x64, system32))
   if (x32) copied.push(...copyDlls(x32, syswow64))
-  if (!copied.length) return [false, `No hay DLLs ${backend} en el runtime`]
+  if (!copied.length) return [false, `No ${backend} DLLs found in runtime`]
 
   const cfg = getBottleConfig(bottleName)
   cfg.graphics_backend = backend
@@ -148,7 +148,7 @@ function applyDllBackend(
   return [true, `${backend}: ${copied.join(', ')}`]
 }
 
-/** Cambia la capa gráfica de la botella (como CrossOver / CPTK). */
+/** Changes the bottle's graphics layer (like CrossOver / CPTK). */
 export function applyGraphicsBackend(
   bottleName: string,
   backend: GraphicsBackendId
@@ -157,22 +157,22 @@ export function applyGraphicsBackend(
     const cfg = getBottleConfig(bottleName)
     cfg.graphics_backend = 'wined3d'
     saveBottleConfig(bottleName, cfg)
-    return [true, 'Capa gráfica: Wine integrado (Battle.net)']
+    return [true, 'Graphics layer: Wine built-in (Battle.net)']
   }
   if (backend === 'd3dmetal') {
     if (!isD3dmetalInstalled()) {
-      return [false, 'D3DMetal no está en el runtime. Importa GPTK o desde CrossOver.']
+      return [false, 'D3DMetal not in runtime. Import GPTK or from CrossOver.']
     }
     return applyD3dmetalToBottle(bottleName)
   }
   if (backend === 'dxmt') {
-    if (!isDxmtInstalled()) return [false, 'DXMT no instalado']
+    if (!isDxmtInstalled()) return [false, 'DXMT not installed']
     return applyDllBackend(bottleName, 'dxmt')
   }
   if (backend === 'dxvk') {
     return applyDllBackend(bottleName, 'dxvk')
   }
-  return [false, `Backend desconocido: ${backend}`]
+  return [false, `Unknown backend: ${backend}`]
 }
 
 export function applyGraphicsEnvForBottle(

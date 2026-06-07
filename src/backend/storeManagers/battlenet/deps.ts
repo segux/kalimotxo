@@ -158,7 +158,7 @@ import { fixBrokenUpdateFolders, isBattleNetInstalled } from './client'
 export async function ensureLaunchDependencies(
   log?: (msg: string) => void
 ): Promise<[boolean, string]> {
-  if (!isBattleNetInstalled()) return [true, 'Cliente no instalado aún']
+  if (!isBattleNetInstalled()) return [true, 'Client not installed yet']
 
   const logFn = log ?? (() => {})
   const { ensureToolsForWinetricks } = await import('../../setup/ensureEnvironment')
@@ -166,17 +166,17 @@ export async function ensureLaunchDependencies(
   if (!toolsOk) return [false, toolsMsg]
 
   const removed = fixBrokenUpdateFolders()
-  if (removed) logFn(`Eliminadas ${removed} carpeta(s) de actualización rota(s)`)
+  if (removed) logFn(`Removed ${removed} broken update folder(s)`)
 
   let mirrored = syncLaunchRuntime()
-  if (mirrored.length) logFn(`DLL 32-bit en syswow64: ${mirrored.join(', ')}`)
+  if (mirrored.length) logFn(`32-bit DLLs in syswow64: ${mirrored.join(', ')}`)
 
   if (bottleLaunchDepsOk()) {
     prepareBottleForLauncher()
-    return [true, 'Dependencias de lanzamiento listas']
+    return [true, 'Launch dependencies ready']
   }
 
-  logFn('Instalando runtime 32-bit (vcrun/ucrt)…')
+  logFn('Installing 32-bit runtime (vcrun/ucrt)...')
   const [prepOk, prepMsg] = await installBattlenetVerbs(
     BATTLENET_BOTTLE,
     BATTLENET_LAUNCH_PREP,
@@ -185,15 +185,15 @@ export async function ensureLaunchDependencies(
   )
   if (!prepOk) return [false, prepMsg]
   mirrored = syncLaunchRuntime()
-  if (mirrored.length) logFn(`DLL 32-bit: ${mirrored.join(', ')}`)
+  if (mirrored.length) logFn(`32-bit DLLs: ${mirrored.join(', ')}`)
   prepareBottleForLauncher()
   if (!bottleLaunchDepsOk()) {
     return [
       false,
-      'No se pudieron instalar las DLL VC++/UCRT automáticamente. Revisa el log en ~/.kalimotxo/logs/'
+      'Could not install VC++/UCRT DLLs automatically. Check the log in ~/.kalimotxo/logs/'
     ]
   }
-  return [true, 'Dependencias de lanzamiento instaladas']
+  return [true, 'Launch dependencies installed']
 }
 
 export { stopWineForWinetricks } from '../../launcher/wineRunner'
