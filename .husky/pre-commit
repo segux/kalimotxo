@@ -1,0 +1,32 @@
+# ─── gitleaks: secret scan before commit ───
+echo "🔍 gitleaks: scanning staged changes..."
+gitleaks protect --staged --verbose --redact --log-level=error --no-banner
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ gitleaks found potential secrets in staged files."
+  echo "   Review the output above. If false positives, add to .gitleaks.toml allowlist."
+  exit 1
+fi
+
+# ─── typecheck ───
+echo ""
+echo "🔎 typecheck (tsc --noEmit)..."
+pnpm run codecheck
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Typecheck failed. Fix type errors before committing."
+  exit 1
+fi
+
+# ─── tests ───
+echo ""
+echo "🧪 running tests..."
+pnpm run test
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Tests failed. Fix broken tests before committing."
+  exit 1
+fi
+
+echo ""
+echo "✅ All checks passed. Committing..."

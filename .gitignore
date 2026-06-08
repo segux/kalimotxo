@@ -52,5 +52,8 @@ docs/project-context.md
 docs/crossover-d2r-extraction-guide.md
 docs/d2r-test-results-*.md
 
+# Husky internals (managed automatically)
+.husky/_
+
 # Logs
 *.log

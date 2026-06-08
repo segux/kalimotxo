@@ -1,0 +1,32 @@
+# Gitleaks configuration for Kalimotxo
+# See: https://github.com/gitleaks/gitleaks#configuration
+
+title = "Kalimotxo gitleaks config"
+
+[extend]
+# Start from the default ruleset
+useDefault = true
+
+[allowlist]
+  description = "Project-specific false positives"
+
+  # GitHub Actions secrets.GITHUB_TOKEN is not a leak
+  regexes = [
+    '''secrets\.GITHUB_TOKEN''',
+    '''github-actions\[bot\]@users\.noreply\.github\.com''',
+  ]
+
+  # Files that contain test data / mocks that look like secrets but aren't
+  paths = [
+    '''src/backend/.*/__tests__/.*\.ts$''',
+    '''pnpm-lock\.yaml''',
+  ]
+
+  # Test paths / fixture data that can look like tokens
+  commits = []
+
+[[rules]]
+  id = "generichash"
+  description = "Ignore short generic hashes in test fixtures"
+  path = '''src/.*__tests__/.*'''
+  regex = '''(?i)[a-f0-9]{32}'''

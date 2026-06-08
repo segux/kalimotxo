@@ -105,7 +105,7 @@ describe('isCrossOverRealBinary', () => {
 
   it('returns false for regular Wine', () => {
     const regular: WineInstallation = {
-      bin: '/Users/segux/.kalimotxo/runtime/wine/Wine-11.0/bin/wine',
+      bin: '/home/user/.kalimotxo/runtime/wine/Wine-11.0/bin/wine',
       name: 'Wine 11.0',
       type: 'wine'
     }
