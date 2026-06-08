@@ -18,7 +18,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Configure git credentials
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Enable Corepack (pnpm)
         run: corepack enable
@@ -38,13 +44,10 @@ jobs:
         run: pnpm run test
 
       - name: Bootstrap first-release baseline
-        # If no version tags exist yet, anchor v0.0.0 at the parent of HEAD so
-        # semantic-release treats the current push as the first releasable change
-        # and creates v0.0.1 (patch) or higher on this very run.
+        # Anchors v0.0.0 at HEAD^ on the very first run so semantic-release
+        # treats the current commit as the first releasable change (v0.0.1+).
         run: |
-          if ! git tag --list 'v*.*.*' | grep -qE '^v[0-9]'; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git ls-remote --tags origin | grep -qE 'refs/tags/v[0-9]'; then
             PARENT=$(git rev-parse --verify HEAD^ 2>/dev/null || git rev-parse HEAD)
             git tag v0.0.0 "$PARENT"
             git push origin v0.0.0
