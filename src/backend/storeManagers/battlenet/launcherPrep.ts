@@ -18,10 +18,14 @@ export function sanitizeBattleNetConfig(bottleName = BATTLENET_BOTTLE): void {
   try {
     const cfg = getBottleConfig(bottleName)
     cfg.graphics_backend = BATTLENET_LAUNCHER_BACKEND
-    // esync/msync agotan el espacio de direcciones en macOS y rompen Battle.net (32-bit).
-    cfg.sync_mode = 'none'
+    // June 2026: Battle.net + D2R both use msync now. The wineserver MUST
+    // run with WINEMSYNC=1 so that child game processes (D2R launched by
+    // Battle.net through the Agent) inherit the correct sync mode. Without
+    // it D2R crashes with err:sync:msync_init when the parent wineserver
+    // uses msync but the child does not.
+    cfg.sync_mode = 'msync'
     delete cfg.env_vars.WINEESYNC
-    delete cfg.env_vars.WINEMSYNC
+    cfg.env_vars.WINEMSYNC = '1'
     for (const key of GRAPHICS_STRIP) {
       delete cfg.env_vars[key]
     }
@@ -31,7 +35,11 @@ export function sanitizeBattleNetConfig(bottleName = BATTLENET_BOTTLE): void {
     const presets: Record<string, string> = {
       vcruntime140_1: 'native,builtin',
       msvcp140_1: 'native,builtin',
-      mf: 'native,builtin',
+      // D2R (and other Blizzard games) need mf/winegstreamer disabled
+      // to avoid CrossOver Media Foundation crashes. Battle.net's CEF
+      // launcher UI does not use MF, so this is safe for the launcher too.
+      mf: 'disabled',
+      winegstreamer: 'disabled',
       location: 'd',
       locationapi: 'd',
       d3d11: 'builtin',

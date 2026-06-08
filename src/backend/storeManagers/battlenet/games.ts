@@ -11,7 +11,7 @@ import {
 } from '../../compatibility/catalog'
 
 export type { BlizzardGameId }
-import { buildBattleNetLaunchEnv, runExe, stopWineProcesses } from '../../launcher/wineRunner'
+import { buildBattleNetLaunchEnv, runExe } from '../../launcher/wineRunner'
 import { applyGraphicsBackend, applyGraphicsEnv, type GraphicsBackendId } from '../../wine/graphicsBackend'
 import { mergeDllOverrides } from '../../wine/wineEnv'
 import { ensureD3dmetal, ensureD3dmetalForDx12Games } from '../../wine/d3dmetalSetup'
@@ -216,7 +216,11 @@ export async function launchBlizzardGame(
   const [depsOk, depsMsg] = await ensureLaunchDependencies(log)
   if (!depsOk) return { success: false, message: depsMsg }
 
-  stopWineProcesses(BATTLENET_BOTTLE, { wait: false })
+  // Do NOT kill wineserver here: the Battle.net Update Agent must stay alive
+  // for D2R (and other Blizzard games) to authenticate online. The game watcher
+  // already kills the specific D2R.exe child process before relaunching, and
+  // the new D2R process shares the same wineserver as the Agent.
+  // stopWineProcesses would kill the Agent → "error de conexión" in online mode.
 
   // Persist profile to bottle config for UI display (secondary — env is built
   // directly from profile below to avoid prepareBottleForLauncher races).

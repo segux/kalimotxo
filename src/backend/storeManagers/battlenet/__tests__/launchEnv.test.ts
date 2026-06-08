@@ -35,9 +35,11 @@ jest.mock('../../../wine/compatibilityLayers', () => ({
 describe('buildBattleNetLaunchEnv', () => {
   it('aplica el stack «Battle.net ready» (D4Mac) en el cliente', () => {
     const env = buildBattleNetLaunchEnv('Battle.net')
-    // esync/msync y vars gráficas se eliminan para el cliente CEF
+    // esync y vars gráficas se eliminan para el cliente CEF.
+    // WINEMSYNC se conserva: el wineserver debe correr con msync para que
+    // los juegos hijos (D2R) hereden el modo de sincronización correcto.
     expect(env.WINEESYNC).toBeUndefined()
-    expect(env.WINEMSYNC).toBeUndefined()
+    expect(env.WINEMSYNC).toBe('1')
     expect(env.DXMT_ASYNC).toBeUndefined()
     // VA_ALLOC es solo para juegos, NO para el cliente (crasheaba el Agent)
     expect(env.WINE_DISABLE_VA_ALLOC).toBeUndefined()

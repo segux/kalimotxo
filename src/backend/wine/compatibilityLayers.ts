@@ -38,9 +38,14 @@ export function getWineSettings(): KalimotxoWineSettings {
 }
 
 function wineExecs(wineBin: string): Pick<WineInstallation, 'bin' | 'wineserver'> {
+  // Some builds (e.g. GPTK) only ship wine64, no wine symlink.
+  // When findWine64 returns wine64, converting to wine must not
+  // produce a path that doesn't exist (spawn would fail with ENOENT).
+  const binAsWine = wineBin.replace(/wine64$/, 'wine')
+  const bin = binAsWine !== wineBin && existsSync(binAsWine) ? binAsWine : wineBin
   const wineserver = wineBin.replace(/wine64?$/, 'wineserver')
   return {
-    bin: wineBin.replace(/wine64$/, 'wine'),
+    bin,
     wineserver: existsSync(wineserver) ? wineserver : undefined
   }
 }

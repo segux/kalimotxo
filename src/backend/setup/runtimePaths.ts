@@ -2,8 +2,10 @@ import { existsSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { D3DMETAL_DIR, DXMT_DIR, DXVK_DIR, WINE_DIR } from '../config/paths'
 import { migrateLegacyInstall, resolveActiveWineRoot } from '../wine/manager/installed'
+import { getActiveVersionId } from '../wine/manager/catalog'
 
-/** Locates wine64 or wine under a directory tree (.app bundle or flat layout). */
+/** Locates wine64 or wine under a directory tree (.app bundle or flat layout).
+ *  Flat directories (with bin/wine) take priority over .app bundles. */
 export function findWine64InTree(root: string): string | null {
   if (!existsSync(root)) return null
 
@@ -19,17 +21,10 @@ export function findWine64InTree(root: string): string | null {
     return null
   }
 
+  // First pass: flat (non-.app) directories — newer Wine builds like
+  // Wine-BattleNet-11.0 with bin/wine. Check before .app bundles.
   for (const name of entries) {
-    if (!name.endsWith('.app')) continue
-    const binDir = join(root, name, 'Contents/Resources/wine/bin')
-    for (const bin of ['wine64', 'wine']) {
-      const candidate = join(binDir, bin)
-      if (existsSync(candidate)) return candidate
-    }
-  }
-
-  for (const name of entries) {
-    if (name === '.DS_Store') continue
+    if (name === '.DS_Store' || name.endsWith('.app')) continue
     const child = join(root, name)
     try {
       if (statSync(child).isDirectory()) {
@@ -38,6 +33,16 @@ export function findWine64InTree(root: string): string | null {
       }
     } catch {
       /* ignore */
+    }
+  }
+
+  // Second pass: .app bundles (legacy layout with Contents/Resources/wine/bin)
+  for (const name of entries) {
+    if (!name.endsWith('.app')) continue
+    const binDir = join(root, name, 'Contents/Resources/wine/bin')
+    for (const bin of ['wine64', 'wine']) {
+      const candidate = join(binDir, bin)
+      if (existsSync(candidate)) return candidate
     }
   }
 
@@ -96,6 +101,19 @@ export function findWine64(): string | null {
   if (activeRoot) {
     const inActive = findWine64InTree(activeRoot)
     if (inActive) return inActive
+  }
+  // Safety net: if the catalog active version's install_dir was stale/missing,
+  // try to find a directory under WINE_DIR matching the active version name.
+  // This prevents falling back to a random .app bundle (e.g. GPTK or Staging)
+  // when Wine-BattleNet-11.0 is the intended active wine.
+  const versionId = getActiveVersionId()
+  if (versionId) {
+    const safeName = versionId.replace(/\//g, '_').replace(/ /g, '_')
+    const expectedDir = join(WINE_DIR, safeName)
+    if (existsSync(expectedDir)) {
+      const found = findWine64InTree(expectedDir)
+      if (found) return found
+    }
   }
   const inTree = findWine64InTree(WINE_DIR)
   if (inTree) return inTree

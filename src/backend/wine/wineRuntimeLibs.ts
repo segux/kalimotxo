@@ -1,5 +1,6 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync, statSync } from 'fs'
 import { dirname, join } from 'path'
+import { tmpdir } from 'os'
 
 import { DXMT_DIR, D3DMETAL_DIR } from '../config/paths'
 import { resolveBundledGnutlsDir, resolveWineExternalDir } from './wineEnv'
@@ -25,10 +26,19 @@ import type { WineInstallation } from './types'
  * cause).
  */
 
-/** `<root>/lib/wine/x86_64-unix` of the active Wine (next to winevulkan.so/secur32.so). */
+/** `<root>/lib/wine/x86_64-unix` of the active Wine (next to winevulkan.so/secur32.so).
+ *  Handles two layouts:
+ *  1. Flat: `root/bin/wine` → `root/lib/wine/x86_64-unix`
+ *  2. CrossOver real binary: `.../lib/wine/x86_64-unix/wine` → same dir */
 function wineUnixLibDir(installation: WineInstallation): string | null {
-  const binDir = dirname(installation.bin) // <root>/bin
-  const root = dirname(binDir) // <root>
+  const bin = installation.bin
+  const binDir = dirname(bin)
+  // CrossOver real binary lives directly in x86_64-unix/
+  if (binDir.endsWith('/x86_64-unix') || binDir.endsWith('\\x86_64-unix')) {
+    return existsSync(binDir) ? binDir : null
+  }
+  // Flat layout: bin/wine → ../../lib/wine/x86_64-unix
+  const root = dirname(binDir)
   const unix = join(root, 'lib', 'wine', 'x86_64-unix')
   return existsSync(unix) ? unix : null
 }
@@ -79,6 +89,46 @@ function copyIfDifferent(src: string, dest: string): boolean {
     return true
   } catch {
     return false
+  }
+}
+
+/**
+ * Wine's WRITECOPY mechanism caches symlinks to ntdll.so inside `winetemp-*` dirs
+ * under TMPDIR. If the Wine installation moves (e.g. data dir rename), those
+ * symlinks become stale and Wine fails at startup with "could not load ntdll.so".
+ * This removes any broken symlinks so Wine recreates them on the next launch.
+ */
+export function purgeBrokenWinetempSymlinks(log?: (line: string) => void): void {
+  const tmp = tmpdir()
+  let entries: string[]
+  try {
+    entries = readdirSync(tmp)
+  } catch {
+    return
+  }
+  for (const name of entries) {
+    if (!name.startsWith('winetemp-')) continue
+    const dir = join(tmp, name)
+    let dirEntries: string[]
+    try {
+      dirEntries = readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const file of dirEntries) {
+      const full = join(dir, file)
+      try {
+        const st = lstatSync(full)
+        if (!st.isSymbolicLink()) continue
+        // If the symlink target doesn't resolve, it's stale — remove it.
+        if (!existsSync(full)) {
+          rmSync(full)
+          log?.(`Wine temp: removed stale symlink ${full}`)
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
 }
 

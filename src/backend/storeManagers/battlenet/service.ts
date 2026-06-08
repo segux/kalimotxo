@@ -25,7 +25,7 @@ import {
 } from './prefixReconcile'
 import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
-import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
+import { ensureBattleNetWineRuntimeLibs, purgeBrokenWinetempSymlinks } from '../../wine/wineRuntimeLibs'
 import { startAgentPortBridge, stopAgentPortBridge } from './agentPortBridge'
 import { startGameWatcher, stopGameWatcher } from './gameWatcher'
 import { resetWineInstallationCache } from '../../launcher/wineRunner'
@@ -592,6 +592,11 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     const prep = prepareBattleNetWineLaunch(logPath)
     if (!prep.ok) return { success: false, message: prep.message }
 
+    // Remove stale winetemp symlinks left over from a previous Wine install path
+    // (e.g. after renaming the data dir). A broken ntdll.so symlink causes
+    // "wine: could not load ntdll.so" on every launch. See wineRuntimeLibs.ts.
+    purgeBrokenWinetempSymlinks(log)
+
     // macOS strips DYLD_* from Wine child processes -> MoltenVK/gnutls do not
     // load via DYLD_FALLBACK. Copying them into lib/wine/x86_64-unix makes them
     // load via @loader_path (GPU + TLS). See wineRuntimeLibs.ts.
@@ -659,11 +664,12 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
       }
     }
 
-    // Start watching for game processes launched by Battle.net.
-    // When the user clicks "Play" inside Battle.net, the game inherits the
-    // client's wined3d environment (not D3DMetal/DXMT). The watcher detects the
-    // process, kills it, and relaunches it with the correct profile.
-    startGameWatcher()
+    // The bottle config now sets msync + DXMT overrides + mf=d. D2R (and other
+    // Blizzard games) launched by Battle.net through the Agent inherit these
+    // settings from the wineserver, so the game watcher is NOT needed. Killing
+    // and relaunching the game process would break the Battle.net session token
+    // and cause "error de conexión" in online mode.
+    // startGameWatcher()  ← disabled: session is lost on kill+relaunch
 
     return {
       success: true,

@@ -39,18 +39,29 @@ export function findWine64InTree(root: string): string | null {
     if (existsSync(candidate)) return candidate
   }
   try {
-    for (const name of readdirSync(root)) {
-      if (name.endsWith('.app')) {
-        const binDir = join(root, name, 'Contents/Resources/wine/bin')
-        for (const exe of ['wine64', 'wine']) {
-          const candidate = join(binDir, exe)
-          if (existsSync(candidate)) return candidate
-        }
-      }
+    const entries = readdirSync(root)
+    // First pass: flat (non-.app) directories — these are newer Wine builds
+    // (e.g. Wine-BattleNet-11.0 with bin/wine). Check them before .app bundles
+    // so they take priority when both exist in the same tree.
+    for (const name of entries) {
+      if (name === '.DS_Store' || name.endsWith('.app')) continue
       const child = join(root, name)
-      if (name !== '.DS_Store' && statSync(child).isDirectory()) {
-        const found = findWine64InTree(child)
-        if (found) return found
+      try {
+        if (statSync(child).isDirectory()) {
+          const found = findWine64InTree(child)
+          if (found) return found
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    // Second pass: .app bundles (legacy layout with Contents/Resources/wine/bin)
+    for (const name of entries) {
+      if (!name.endsWith('.app')) continue
+      const binDir = join(root, name, 'Contents/Resources/wine/bin')
+      for (const exe of ['wine64', 'wine']) {
+        const candidate = join(binDir, exe)
+        if (existsSync(candidate)) return candidate
       }
     }
   } catch {
@@ -84,6 +95,15 @@ export function resolveActiveWineRoot(): string | null {
     const release = findRelease(versionId)
     if (release?.install_dir && existsSync(release.install_dir)) {
       return release.install_dir
+    }
+    // Safety net: catalog install_dir was stale/missing. Try to find a
+    // directory matching the active version name under the install root.
+    if (release) {
+      const root = installRootForType(release.type)
+      const expectedDir = join(root, versionId.replace(/\//g, '_').replace(/ /g, '_'))
+      if (existsSync(expectedDir) && findWine64InTree(expectedDir)) {
+        return expectedDir
+      }
     }
   }
   for (const release of loadCatalog() as WineRelease[]) {

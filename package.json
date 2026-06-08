@@ -31,8 +31,8 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "start": "electron-vite dev",
-    "start:ui": "KALIMOTXO_UI_PREVIEW=1 electron-vite dev",
+    "start": "ELECTRON_RUN_AS_NODE= electron-vite dev",
+    "start:ui": "ELECTRON_RUN_AS_NODE= KALIMOTXO_UI_PREVIEW=1 electron-vite dev",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",

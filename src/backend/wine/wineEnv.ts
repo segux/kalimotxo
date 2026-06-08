@@ -15,8 +15,10 @@ const GRAPHICS_STRIP = [
   'DXVK_HUD',
   'DXVK_ASYNC',
   'WINEESYNC',
-  'WINEMSYNC',
   'WINE_DISABLE_VA_ALLOC'
+  // NOTE: WINEMSYNC is NOT in GRAPHICS_STRIP — the wineserver must run with
+  // msync so that child game processes (D2R) inherit it. Otherwise D2R
+  // crashes with err:sync:msync_init. See docs §2026-06-07.
 ] as const
 
 const WINEMENU_DISABLE = 'winemenubuilder.exe=d'
@@ -178,7 +180,9 @@ export function setupWineEnvVars(
   }
 
   delete env.WINEESYNC
-  delete env.WINEMSYNC
+  // Keep WINEMSYNC if already set (e.g. by bottle config) — the wineserver
+  // must run with msync for child game processes (D2R) to inherit it.
+  // delete env.WINEMSYNC  ← removed: D2R needs msync from parent wineserver
 
   if (options.bottleEnvVars) {
     for (const [k, v] of Object.entries(options.bottleEnvVars)) {

@@ -91,10 +91,11 @@
       "d3d10core": "builtin",
       "wined3d": "builtin",
       "winegstreamer": "disabled",
-      "mf": "disabled"
+      "mf": "disabled",
+      "crypt32": "builtin"
     },
     "args": ["-dx11"],
-    "notes": "Force DX11 via -dx11. d3d11/dxgi/d3d10core=builtin: loads DXMT from WINEDLLPATH (not system32 which has CrossOver D3DMetal-backed DLLs that fail without D3DMetal.framework). winegstreamer/mf disabled to avoid CX crash.",
+    "notes": "Force DX11 via -dx11. d3d11/dxgi/d3d10core=builtin: loads DXMT from WINEDLLPATH. crypt32=builtin: forces Wine's TLS stack (macOS Security framework) for online play.",
     "rating": 4
   },
   "starcraft2": {
