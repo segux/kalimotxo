@@ -125,17 +125,12 @@ export function listDetectedWineInstallations(): WineInstallation[] {
 }
 
 /**
- * Resolves the best Wine installation for Battle.net.
- * Prefers CrossOver if installed because it includes anti-cheat/D3DMetal patches.
+ * Resolves the Wine installation for Battle.net.
+ * Always prefers Kalimotxo's bundled Wine runtime. CrossOver is never used —
+ * Kalimotxo's whole purpose is to replace it.
  */
 export function resolveBattleNetWineInstallation(): WineInstallation {
-  // 1. Prefer CrossOver (has 8000+ patches for anti-cheat, macdrv, etc.)
-  const crossover = getCrossoverInstallations()
-  if (crossover.length > 0) {
-    return crossover[0]
-  }
-
-  // 2. Fallback to Kalimotxo's bundled Wine runtime
+  // 1. Always use Kalimotxo's bundled Wine runtime
   const runtime = getRuntimeWineInstallation()
   if (runtime) return runtime
 

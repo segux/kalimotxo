@@ -14,6 +14,7 @@ export type GameProfile = {
   env: Record<string, string>
   deps: string[]
   dll_overrides: Record<string, string>
+  args?: string[]
   notes?: string
   rating?: number
 }

@@ -80,13 +80,21 @@
     "name": "Diablo II: Resurrected",
     "publisher": "Blizzard Entertainment",
     "exe": "Program Files (x86)/Diablo II Resurrected/D2R.exe",
-    "backend": "d3dmetal",
+    "backend": "dxmt",
     "sync": "msync",
     "windows_version": "win10",
     "env": {},
     "deps": ["vcrun2019"],
-    "dll_overrides": {},
-    "notes": "Uses DirectX 12 renderer. D3DMetal required. D3DMetal uses Wine builtins for d3d12/dxgi (not native overrides like DXMT).",
+    "dll_overrides": {
+      "d3d11": "builtin",
+      "dxgi": "builtin",
+      "d3d10core": "builtin",
+      "wined3d": "builtin",
+      "winegstreamer": "disabled",
+      "mf": "disabled"
+    },
+    "args": ["-dx11"],
+    "notes": "Force DX11 via -dx11. d3d11/dxgi/d3d10core=builtin: loads DXMT from WINEDLLPATH (not system32 which has CrossOver D3DMetal-backed DLLs that fail without D3DMetal.framework). winegstreamer/mf disabled to avoid CX crash.",
     "rating": 4
   },
   "starcraft2": {

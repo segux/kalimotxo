@@ -131,14 +131,16 @@ function buildGameLaunchEnv(
 
   // Apply DLL overrides from the profile directly.
   // CRITICAL: D3DMetal requires Wine builtins (not native) for d3d11/d3d12/dxgi.
-  // The compatibility.json profiles mistakenly set them to native (copied from
-  // DXMT profiles). We override them here to builtin for d3dmetal.
+  // system32 holds CrossOver's D3DMetal-backed DLLs (dxgi.dll 93KB). For both
+  // dxmt and d3dmetal backends these must be loaded as builtin (from WINEDLLPATH)
+  // so Wine finds the real DXMT/D3DMetal DLLs instead of the CrossOver stubs.
+  const DXGI_DLLS = ['d3d11', 'd3d12', 'dxgi', 'd3d10core']
   if (Object.keys(profile.dll_overrides).length > 0) {
     const overrides = Object.entries(profile.dll_overrides).map(
       ([dll, mode]) => {
         if (
-          profile.backend === 'd3dmetal' &&
-          ['d3d11', 'd3d12', 'dxgi', 'd3d10core'].includes(dll)
+          (profile.backend === 'd3dmetal' || profile.backend === 'dxmt') &&
+          DXGI_DLLS.includes(dll)
         ) {
           return `${dll}=builtin`
         }
@@ -253,7 +255,7 @@ export async function launchBlizzardGame(
   const exeName = exe.split(/[/\\]/).pop() ?? 'game.exe'
   log(`Launching ${exeName} (${gameId}) with backend ${profile?.backend ?? 'default'}...`)
   log(`Overrides: ${gameEnv.WINEDLLOVERRIDES ?? '(none)'}`)
-  const proc = runExe(BATTLENET_BOTTLE, exe, { battleNetEnv: true, gameLaunch: true, logPath, env: gameEnv })
+  const proc = runExe(BATTLENET_BOTTLE, exe, { battleNetEnv: true, gameLaunch: true, logPath, env: gameEnv, args: profile?.args })
 
   // Prevent the watcher from killing this newly launched game:
   // - markGameManaged: cooldown by gameId (the Wine loader PID != D2R.exe child PID)
