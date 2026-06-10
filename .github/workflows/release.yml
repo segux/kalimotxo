@@ -9,6 +9,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  workflows: write
   actions: write
 
 jobs:
@@ -68,9 +69,10 @@ jobs:
           if ! git ls-remote --tags origin | grep -qE 'refs/tags/v[0-9]'; then
             PARENT=$(git rev-parse --verify HEAD^ 2>/dev/null || git rev-parse HEAD)
             git tag v0.0.0 "$PARENT"
-            git push origin v0.0.0
+            git push origin v0.0.0 2>/dev/null || echo "Tag v0.0.0 already exists — skipping bootstrap"
             git fetch --tags
-          fi
+          else
+            echo "Tags already exist — skipping bootstrap"
 
       - name: Release (build + package + publish)
         env:
