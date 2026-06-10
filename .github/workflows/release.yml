@@ -85,4 +85,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm exec semantic-release
+        run: |
+          # Remove local v0.0.0 anchor tag so git push --tags does not try to
+          # update it (GITHUB_TOKEN cannot push tags when workflow files change)
+          git tag -d v0.0.0 2>/dev/null || true
+          pnpm exec semantic-release
