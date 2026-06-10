@@ -96,9 +96,9 @@
         "zip"
       ],
       "category": "public.app-category.games",
-      "arch": [
-        "arm64"
-      ]
+      "hardenedRuntime": true,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist"
     },
     "directories": {
       "output": "dist/mac"
