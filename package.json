@@ -40,7 +40,7 @@
     "test": "jest",
     "test:battlenet": "jest src/backend/storeManagers/battlenet",
     "icon:export": "node scripts/export-app-icon.mjs",
-    "predist:mac": "node scripts/export-app-icon.mjs",
+    "predist:mac": "node scripts/export-app-icon.mjs && node scripts/dmg-background.mjs",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "fetch:tools": "node scripts/sync-bundled-tools.mjs",
     "postinstall": "node scripts/sync-bundled-tools.mjs",
@@ -99,6 +99,25 @@
       "hardenedRuntime": true,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist"
+    },
+    "dmg": {
+      "background": "build/dmg-background.png",
+      "window": {
+        "width": 658,
+        "height": 498
+      },
+      "contents": [
+        {
+          "x": 160,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "directories": {
       "output": "dist/mac"
