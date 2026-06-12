@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import LauncherLayout from './components/layout/LauncherLayout'
 import SetupGuard from './components/setup/SetupGuard'
 import PlatformsScreen from './screens/PlatformsScreen'
@@ -10,7 +10,7 @@ import SetupWizardScreen from './screens/SetupWizardScreen'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route element={<SetupGuard />}>
           <Route path="/setup" element={<SetupWizardScreen />} />
@@ -25,6 +25,6 @@ export default function App() {
           </Route>
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

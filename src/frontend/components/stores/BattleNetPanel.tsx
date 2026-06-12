@@ -111,11 +111,18 @@ export function BattleNetPanel() {
     }
   }
 
-  if (!status && !error) {
+  if (!status) {
+    if (error) {
+      return (
+        <div className="mx-auto max-w-xl mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-sm text-red-100">
+          {error}
+        </div>
+      )
+    }
     return <LoadingSplash statusKey="statusBattleNet" className="min-h-[360px]" />
   }
 
-  const s = status!
+  const s = status
   const mode = deriveMode(s, busy)
   const working = mode === 'working'
   const pct = progress?.percent ?? (working ? 12 : 0)

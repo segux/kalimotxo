@@ -13,6 +13,7 @@ yarn.lock
 
 # Downloaded / bundled binaries (fetched at runtime, not redistributed)
 resources/bundled/winetricks
+resources/bundled/tools/
 resources/bundled/d3dmetal/
 resources/bundled/wine/
 

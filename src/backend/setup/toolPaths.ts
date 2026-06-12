@@ -2,7 +2,9 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import { CACHE_DIR, RUNTIME_DIR } from '../config/paths'
-import { getBundledWinetricksPath } from '../config/bundled'
+import { getBundledCabextractPath, getBundledWinetricksPath } from '../config/bundled'
+
+const HOMEBREW_PATHS = ['/opt/homebrew/bin', '/usr/local/bin']
 
 export const TOOLS_DIR = join(RUNTIME_DIR, 'tools')
 export const BUNDLED_CABEXTRACT = join(TOOLS_DIR, 'cabextract')
@@ -19,18 +21,32 @@ function which(cmd: string): string | null {
   }
 }
 
-/** Ruta efectiva de cabextract: sistema, bundle local en ~/.kalimotxo, o null. */
+/** Ruta efectiva de cabextract: bundle del app, sistema, o runtime local. */
 export function resolveCabextractPath(): string | null {
+  // 1. Binary bundled with the app (most reliable in packaged builds)
+  const bundled = getBundledCabextractPath()
+  if (bundled) return bundled
+  // 2. Already copied to the user runtime dir
+  if (existsSync(BUNDLED_CABEXTRACT)) return BUNDLED_CABEXTRACT
+  // 3. System PATH (works in dev mode)
   const sys = which('cabextract')
   if (sys) return sys
-  if (existsSync(BUNDLED_CABEXTRACT)) return BUNDLED_CABEXTRACT
+  // 4. Known Homebrew locations (packaged app PATH may not include them)
+  for (const dir of HOMEBREW_PATHS) {
+    const p = join(dir, 'cabextract')
+    if (existsSync(p)) return p
+  }
   return null
 }
 
 export function resolveGstLaunchPath(): string | null {
+  if (existsSync(BUNDLED_GST_LAUNCH)) return BUNDLED_GST_LAUNCH
   const sys = which('gst-launch-1.0')
   if (sys) return sys
-  if (existsSync(BUNDLED_GST_LAUNCH)) return BUNDLED_GST_LAUNCH
+  for (const dir of HOMEBREW_PATHS) {
+    const p = join(dir, 'gst-launch-1.0')
+    if (existsSync(p)) return p
+  }
   return null
 }
 
@@ -52,12 +68,13 @@ export function ensureWinetricksInRuntime(destPath: string): boolean {
   return true
 }
 
-/** Intenta copiar cabextract desde el PATH del sistema al runtime. */
+/** Copia cabextract al runtime del usuario (desde bundle del app, Homebrew o PATH). */
 export function copyCabextractFromSystem(): boolean {
-  const sys = which('cabextract')
-  if (!sys) return false
+  const src = getBundledCabextractPath() ?? which('cabextract') ??
+    HOMEBREW_PATHS.map((d) => join(d, 'cabextract')).find(existsSync) ?? null
+  if (!src) return false
   mkdirSync(TOOLS_DIR, { recursive: true })
-  copyFileSync(sys, BUNDLED_CABEXTRACT)
+  copyFileSync(src, BUNDLED_CABEXTRACT)
   chmodSync(BUNDLED_CABEXTRACT, 0o755)
   return true
 }

@@ -4,7 +4,7 @@ import { join } from 'path'
 import { execSync } from 'child_process'
 
 export const APP_NAME = 'Kalimotxo'
-export const APP_VERSION = '0.0.1'
+export const APP_VERSION = '0.2.0'
 
 export const DATA_DIR = join(homedir(), '.kalimotxo')
 export const RUNTIME_DIR = join(DATA_DIR, 'runtime')

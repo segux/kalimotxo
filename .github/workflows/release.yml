@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, next]
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   release:
     runs-on: macos-15
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,12 +62,12 @@ jobs:
           echo "CSC_LINK=$CERT_PATH" >> $GITHUB_ENV
           echo "CSC_KEY_PASSWORD=$APPLE_CERTIFICATE_PASSWORD" >> $GITHUB_ENV
 
-      - name: Bootstrap first-release baseline
+      - name: Bootstrap baseline tag if missing
         run: |
           if ! git ls-remote --tags origin | grep -qE 'refs/tags/v[0-9]'; then
             PARENT=$(git rev-parse --verify HEAD^ 2>/dev/null || git rev-parse HEAD)
-            git tag v0.0.0 "$PARENT"
-            git push origin v0.0.0 2>/dev/null || echo "Tag v0.0.0 already exists — skipping bootstrap"
+            git tag v0.2.0 "$PARENT"
+            git push origin v0.2.0 2>/dev/null || echo "Tag v0.2.0 already exists — skipping bootstrap"
             git fetch --tags
           else
             echo "Tags already exist — skipping bootstrap"
@@ -85,8 +85,4 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          # Remove local v0.0.0 anchor tag so git push --tags does not try to
-          # update it (GITHUB_TOKEN cannot push tags when workflow files change)
-          git tag -d v0.0.0 2>/dev/null || true
-          pnpm exec semantic-release
+        run: pnpm exec semantic-release

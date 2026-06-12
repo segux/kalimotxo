@@ -1,7 +1,7 @@
 import { cn } from '../../lib/utils'
 
-const ICON_SRC = '/brand/kalimotxo-icon.png'
-const LOGO_SRC = '/brand/kalimotxo-logo.svg'
+const ICON_SRC = `${import.meta.env.BASE_URL}brand/kalimotxo-icon.png`
+const LOGO_SRC = `${import.meta.env.BASE_URL}brand/kalimotxo-logo.svg`
 
 export type KalimotxoLogoVariant = 'icon' | 'full'
 

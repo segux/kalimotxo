@@ -56,5 +56,5 @@ export function StoreLogo({
 }
 
 export function getStoreBannerUrl(storeId: StoreId): string {
-  return `/stores/banners/${storeId}.svg`
+  return `${import.meta.env.BASE_URL}stores/banners/${storeId}.svg`
 }

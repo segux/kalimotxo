@@ -249,7 +249,12 @@ export function setupWineEnvVars(
       'mshtml=d',
       'vcruntime140_1=n,b',
       'msvcp140_1=n,b',
-      'mf=n,b',
+      // Media Foundation / gstreamer completely disabled: Battle.net's CEF
+      // launcher UI does not use MF, and loading it pulls in winegstreamer
+      // which crashes on unimplemented functions (e.g.
+      // winegstreamer_create_color_converter). D2R also does not need MF.
+      'mf=',
+      'winegstreamer=',
       // CRITICAL: force Wine's builtin `vulkan-1` (winevulkan -> MoltenVK,
       // which DOES expose VK_KHR_win32_surface). Otherwise ANGLE loads the
       // headless SwiftShader `vulkan-1.dll` that Battle.net ships in its folder

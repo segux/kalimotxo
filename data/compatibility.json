@@ -90,8 +90,8 @@
       "dxgi": "builtin",
       "d3d10core": "builtin",
       "wined3d": "builtin",
-      "winegstreamer": "disabled",
-      "mf": "disabled",
+      "winegstreamer": "",
+      "mf": "",
       "crypt32": "builtin"
     },
     "args": ["-dx11"],

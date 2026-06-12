@@ -35,11 +35,13 @@ export function sanitizeBattleNetConfig(bottleName = BATTLENET_BOTTLE): void {
     const presets: Record<string, string> = {
       vcruntime140_1: 'native,builtin',
       msvcp140_1: 'native,builtin',
-      // D2R (and other Blizzard games) need mf/winegstreamer disabled
-      // to avoid CrossOver Media Foundation crashes. Battle.net's CEF
-      // launcher UI does not use MF, so this is safe for the launcher too.
-      mf: 'disabled',
-      winegstreamer: 'disabled',
+      // D2R (and other Blizzard games) need mf/winegstreamer completely
+      // disabled (empty string = never load) to prevent crashes from
+      // unimplemented functions like winegstreamer_create_color_converter.
+      // "disabled" mode only prevents COM loading, but the DLL can still be
+      // pulled in by other components.
+      mf: '',
+      winegstreamer: '',
       location: 'd',
       locationapi: 'd',
       d3d11: 'builtin',

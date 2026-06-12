@@ -124,6 +124,7 @@
     },
     "files": [
       "build/**/*",
+      "data/**/*",
       "package.json"
     ],
     "extraResources": [

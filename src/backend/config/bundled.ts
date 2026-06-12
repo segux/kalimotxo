@@ -15,6 +15,11 @@ export function getBundledWinetricksPath(): string | null {
   return existsSync(p) ? p : null
 }
 
+export function getBundledCabextractPath(): string | null {
+  const p = join(getBundledDir(), 'tools', 'cabextract')
+  return existsSync(p) ? p : null
+}
+
 /** GPTK/D3DMetal colocado a mano en `resources/bundled/d3dmetal` (no se commitea). */
 export function getBundledD3dmetalDir(): string {
   return join(getBundledDir(), 'd3dmetal')

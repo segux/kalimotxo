@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
   },
   renderer: {
     root: '.',
+    base: './',
     publicDir: 'public',
     define: {
       'import.meta.env.VITE_UI_PREVIEW': JSON.stringify(process.env.KALIMOTXO_UI_PREVIEW ?? '')
