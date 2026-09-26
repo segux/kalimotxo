@@ -40,11 +40,12 @@ jobs:
     timeout-minutes: 240
     env:
       X86: arch -x86_64
-      BREW: /usr/local/bin/brew
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
       HOMEBREW_NO_ENV_HINTS: 1
       CX_VERSION: ${{ inputs.crossover_version || '26.1.0' }}
+      LLVM_MINGW_VERSION: '20260922'
+      DEPS: ${{ github.workspace }}/deps
       TAG: wine-cx-${{ inputs.crossover_version || '26.1.0' }}
     steps:
       - uses: actions/checkout@v4
@@ -52,23 +53,29 @@ jobs:
       - name: Install Rosetta 2
         run: softwareupdate --install-rosetta --agree-to-license || true
 
-      - name: Install x86_64 build dependencies
+      # Homebrew no longer installs on x86_64 macOS, so only build tools come
+      # from the runner's native Homebrew; the x86_64 libraries Wine links are
+      # built from source by scripts/wine/build-deps.sh (cached).
+      - name: Install build tools
         run: |
           set -euo pipefail
-          if [ ! -x "$BREW" ]; then
-            $X86 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          fi
-          # The runner pre-seeds /usr/local/bin with Python.framework shims that
-          # block Homebrew from linking python (pulled in as a dependency).
-          for shim in /usr/local/bin/*; do
-            if [ -L "$shim" ] && readlink "$shim" | grep -q Python.framework; then
-              sudo rm -f "$shim"
-            fi
-          done
-          $X86 "$BREW" install bison mingw-w64 freetype gnutls sdl2 molten-vk pkgconf ccache || true
-          for f in bison mingw-w64 freetype gnutls sdl2 molten-vk pkgconf ccache; do
-            $X86 "$BREW" --prefix "$f" >/dev/null || { echo "::error::missing $f"; exit 1; }
-          done
+          brew install bison pkgconf ccache cmake
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
+          curl -fsSL "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-macos-universal.tar.xz" -o llvm-mingw.tar.xz
+          mkdir -p "$RUNNER_TEMP/llvm-mingw"
+          tar -xf llvm-mingw.tar.xz -C "$RUNNER_TEMP/llvm-mingw" --strip-components=1
+          echo "$RUNNER_TEMP/llvm-mingw/bin" >> "$GITHUB_PATH"
+
+      - name: Restore x86_64 dependencies
+        id: deps-cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: wine-deps-${{ hashFiles('scripts/wine/build-deps.sh') }}
+
+      - name: Build x86_64 dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: scripts/wine/build-deps.sh "$DEPS"
 
       - name: Fetch CrossOver sources
         run: |
@@ -93,13 +100,14 @@ jobs:
       - name: Configure and build Wine (WoW64, x86_64)
         run: |
           set -euo pipefail
-          P() { $X86 "$BREW" --prefix "$1"; }
           export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
-          export PATH="$(P ccache)/libexec:$(P bison)/bin:$(P mingw-w64)/bin:$(P pkgconf)/bin:$PATH"
-          export PKG_CONFIG_PATH="$(P gnutls)/lib/pkgconfig:$(P freetype)/lib/pkgconfig:$(P sdl2)/lib/pkgconfig:/usr/local/lib/pkgconfig"
-          export CPPFLAGS="-I$(P molten-vk)/include -I/usr/local/include"
-          export LDFLAGS="-L$(P molten-vk)/lib -L/usr/local/lib"
+          export PATH="$(brew --prefix ccache)/libexec:$PATH"
+          export PKG_CONFIG_PATH="$DEPS/lib/pkgconfig"
+          export CPPFLAGS="-I$DEPS/include"
+          export LDFLAGS="-L$DEPS/lib"
           export CC="clang -arch x86_64" CXX="clang++ -arch x86_64"
+          bison --version | head -1
+          x86_64-w64-mingw32-clang --version | head -1
           mkdir -p build wine-install
           cd build
           # -fvisibility=default keeps winemac.drv's Metal helpers visible to
@@ -121,12 +129,11 @@ jobs:
       - name: Bundle runtime dylibs
         run: |
           set -euo pipefail
-          P() { $X86 "$BREW" --prefix "$1"; }
-          python3 scripts/wine/bundle-dylibs.py wine-install /usr/local \
-            "$(P gnutls)/lib/libgnutls.30.dylib" \
-            "$(P freetype)/lib/libfreetype.6.dylib" \
-            "$(P sdl2)/lib/libSDL2-2.0.0.dylib" \
-            "$(P molten-vk)/lib/libMoltenVK.dylib"
+          python3 scripts/wine/bundle-dylibs.py wine-install "$DEPS" \
+            "$DEPS/lib/libgnutls.30.dylib" \
+            "$DEPS/lib/libfreetype.6.dylib" \
+            "$DEPS/lib/libSDL2-2.0.0.dylib" \
+            "$DEPS/lib/libMoltenVK.dylib"
 
       - name: Smoke test
         run: |
@@ -151,7 +158,9 @@ jobs:
           (sha256 $(cut -d' ' -f1 crossover-sources.sha256))
 
           Build recipe: https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.github/workflows/build-wine.yml
-          Bundled x86_64 libraries (lib/external) come from Homebrew; each keeps its own licence.
+          Bundled x86_64 libraries (lib/external): gnutls, nettle, gmp, freetype and SDL2 built
+          from their upstream sources by scripts/wine/build-deps.sh, and the official MoltenVK
+          release binary. Each keeps its own licence.
           EOF
           mv wine-install "$TAG"
           tar -cJf "$TAG.tar.xz" "$TAG"

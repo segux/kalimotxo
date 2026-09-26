@@ -11,8 +11,9 @@ cualquier usuario lo obtenga sin instalar nada más y sin depender de builds de 
 
 - Wine WoW64 (`--enable-archs=i386,x86_64`) compilado desde
   `crossover-sources-<versión>.tar.gz`, **sin modificar**.
-- `lib/external/`: cadenas x86_64 de gnutls (TLS), freetype (fuentes), SDL2 (mandos) y MoltenVK
-  (Vulkan→Metal), con referencias reescritas a `@loader_path` (`scripts/wine/bundle-dylibs.py`).
+- `lib/external/`: librerías x86_64 de gnutls (TLS, con nettle y gmp), freetype (fuentes), SDL2
+  (mandos) y MoltenVK (Vulkan→Metal), con referencias reescritas a `@loader_path`
+  (`scripts/wine/bundle-dylibs.py`).
 - `COPYING.LIB` y `SOURCE.md` con la URL y el sha256 exactos del código fuente (requisito LGPL).
 
 **No contiene nada de Apple.** D3DMetal (GPTK) solo lo necesitan los juegos DX12 (p. ej. Diablo IV)
@@ -23,10 +24,13 @@ MoltenVK. DXMT también se descarga aparte (`runtime/dxmt`).
 
 Workflow `.github/workflows/build-wine.yml`, en un runner `macos-15` (Apple Silicon):
 
-1. Homebrew x86_64 bajo Rosetta en `/usr/local` con bison, mingw-w64, freetype, gnutls, sdl2,
-   molten-vk.
-2. `configure --enable-archs=i386,x86_64 --without-x --without-gstreamer` y `make` (x86_64).
-3. Empaquetado de las librerías, prueba de humo (`wineboot --init` + `cmd /c ver`) y `.tar.xz`
+1. Herramientas de compilación (bison, pkgconf, ccache, cmake) del Homebrew nativo del runner y el
+   compilador cruzado [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (build universal oficial).
+2. Librerías x86_64 compiladas desde su código fuente con versiones fijadas
+   (`scripts/wine/build-deps.sh`, en caché) y MoltenVK desde su release oficial. Homebrew ya no se
+   instala en x86_64 ni publica paquetes Intel, así que no se puede usar para esto.
+3. `configure --enable-archs=i386,x86_64 --without-x --without-gstreamer` y `make` (x86_64).
+4. Empaquetado de las librerías, prueba de humo (`wineboot --init` + `cmd /c ver`) y `.tar.xz`
    con su `.sha512sum`.
 
 Disparadores:
@@ -42,5 +46,6 @@ La receta está adaptada de [mikaelhug/Silo](https://github.com/mikaelhug/Silo) 
 
 - Wine / CrossOver sources: LGPL-2.1. Redistribuimos binarios con la licencia y la referencia al
   código fuente correspondiente.
-- Librerías de `lib/external`: cada una conserva su licencia (LGPL/MIT/zlib/Apache 2.0).
+- Librerías de `lib/external`: cada una conserva su licencia (gnutls, nettle y gmp: LGPL; freetype:
+  FTL/GPL-2; SDL2: zlib; MoltenVK: Apache 2.0).
 - Kalimotxo no redistribuye D3DMetal.
