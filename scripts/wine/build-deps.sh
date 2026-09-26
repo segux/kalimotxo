@@ -24,10 +24,11 @@ SDL2_VERSION=2.32.10
 MOLTENVK_VERSION="${MOLTENVK_VERSION:-v1.3.0}"
 
 export MACOSX_DEPLOYMENT_TARGET=11.0
-# Absolute Xcode compilers: llvm-mingw (on PATH for Wine) ships its own clang,
-# which has no macOS SDK.
-CLANG="$(xcrun -f clang)"
-CLANGXX="$(xcrun -f clang++)"
+# The /usr/bin driver shims pick the active Xcode and its macOS SDK. Plain
+# `clang` could resolve to llvm-mingw's (on PATH for Wine), which has no SDK.
+export SDKROOT="${SDKROOT:-$(xcrun --show-sdk-path)}"
+CLANG=/usr/bin/clang
+CLANGXX=/usr/bin/clang++
 export CC="$CLANG -arch x86_64"
 export CXX="$CLANGXX -arch x86_64"
 export CPPFLAGS="-I$PREFIX/include"
