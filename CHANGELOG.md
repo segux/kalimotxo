@@ -1,3 +1,20 @@
+# [0.3.0](https://github.com/segux/kalimotxo/compare/v0.2.1...v0.3.0) (2026-09-26)
+
+
+### Bug Fixes
+
+* **battlenet:** keep the session alive and start the client faster ([752b72a](https://github.com/segux/kalimotxo/commit/752b72a80e8063c8b94c8639a9b515b86bac9f22))
+* **ci:** bundle Wine's runtime dylibs next to its unix modules ([8e491c7](https://github.com/segux/kalimotxo/commit/8e491c753acfe29f947b7e83ce57bcee3b160ae1))
+* **ci:** use the /usr/bin clang shims so host code gets the macOS SDK ([552649b](https://github.com/segux/kalimotxo/commit/552649b65b6791a50c81cd1cc683d07f022e87bd))
+* **ci:** use Xcode clang for macOS code in the Wine build ([2061d42](https://github.com/segux/kalimotxo/commit/2061d42dc7d8c4df057d815a54fc095d93b86c4e))
+* **wine:** resolve wineserver correctly and stop only the target prefix ([0ae8e4f](https://github.com/segux/kalimotxo/commit/0ae8e4f27ee3425f8fb9e1e57030e578165af41d))
+
+
+### Features
+
+* **library:** install and play Windows games outside Battle.net ([4b8e99c](https://github.com/segux/kalimotxo/commit/4b8e99c7221e9c0d6ae9f5250ffe44fec5c066e9))
+* **wine:** download the Battle.net Wine built by Kalimotxo's CI ([b6ad2ae](https://github.com/segux/kalimotxo/commit/b6ad2ae44fdf0e14279ac68a26e08c7a8fa0a3dd))
+
 ## [0.2.1](https://github.com/segux/kalimotxo/compare/v0.2.0...v0.2.1) (2026-06-12)
 
 
