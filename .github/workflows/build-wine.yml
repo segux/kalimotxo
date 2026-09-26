@@ -93,10 +93,11 @@ jobs:
           URL="https://media.codeweavers.com/pub/crossover/source/crossover-sources-${CX_VERSION}.tar.gz"
           curl -fL -A "Mozilla/5.0" "$URL" -o crossover-sources.tar.gz
           shasum -a 256 crossover-sources.tar.gz | tee crossover-sources.sha256
-          mkdir -p src && tar -xzf crossover-sources.tar.gz -C src
-          WINE_SRC=$(find src -maxdepth 3 -type d -name wine -print -quit)
+          # Not `src/`: that is Kalimotxo's own source tree (src/backend/wine).
+          mkdir -p crossover-src && tar -xzf crossover-sources.tar.gz -C crossover-src
+          WINE_SRC="$GITHUB_WORKSPACE/crossover-src/sources/wine"
           test -f "$WINE_SRC/configure"
-          echo "WINE_SRC=$GITHUB_WORKSPACE/$WINE_SRC" >> "$GITHUB_ENV"
+          echo "WINE_SRC=$WINE_SRC" >> "$GITHUB_ENV"
 
       - name: Restore ccache
         uses: actions/cache@v4
