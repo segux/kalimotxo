@@ -141,12 +141,13 @@ jobs:
       - name: Smoke test
         run: |
           set -euo pipefail
-          export DYLD_FALLBACK_LIBRARY_PATH="$GITHUB_WORKSPACE/wine-install/lib/external"
           $X86 wine-install/bin/wine --version
           export WINEPREFIX="$RUNNER_TEMP/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
           $X86 wine-install/bin/wine wineboot --init
           $X86 wine-install/bin/wineserver -w
-          $X86 wine-install/bin/wine cmd /c ver
+          $X86 wine-install/bin/wine cmd /c ver 2>&1 | tee smoke.log
+          # Libraries must load without DYLD_* (macOS strips it in Wine's children).
+          if grep -q "cannot find the FreeType" smoke.log; then echo "::error::FreeType not found"; exit 1; fi
 
       - name: Package
         run: |
@@ -161,7 +162,7 @@ jobs:
           (sha256 $(cut -d' ' -f1 crossover-sources.sha256))
 
           Build recipe: https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.github/workflows/build-wine.yml
-          Bundled x86_64 libraries (lib/external): gnutls, nettle, gmp, freetype and SDL2 built
+          Bundled x86_64 libraries (lib/wine/x86_64-unix): gnutls, nettle, gmp, freetype and SDL2 built
           from their upstream sources by scripts/wine/build-deps.sh, and the official MoltenVK
           release binary. Each keeps its own licence.
           EOF

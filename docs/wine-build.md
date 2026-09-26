@@ -11,9 +11,10 @@ cualquier usuario lo obtenga sin instalar nada más y sin depender de builds de 
 
 - Wine WoW64 (`--enable-archs=i386,x86_64`) compilado desde
   `crossover-sources-<versión>.tar.gz`, **sin modificar**.
-- `lib/external/`: librerías x86_64 de gnutls (TLS, con nettle y gmp), freetype (fuentes), SDL2
-  (mandos) y MoltenVK (Vulkan→Metal), con referencias reescritas a `@loader_path`
-  (`scripts/wine/bundle-dylibs.py`).
+- `lib/wine/x86_64-unix/`: librerías x86_64 de gnutls (TLS, con nettle y gmp), freetype (fuentes),
+  SDL2 (mandos) y MoltenVK (Vulkan→Metal), junto a los módulos de Wine, que las cargan por su rpath
+  `@loader_path/` sin variables `DYLD_*` (macOS las borra en los procesos hijos de Wine). Referencias
+  reescritas a `@loader_path` (`scripts/wine/bundle-dylibs.py`).
 - `COPYING.LIB` y `SOURCE.md` con la URL y el sha256 exactos del código fuente (requisito LGPL).
 
 **No contiene nada de Apple.** D3DMetal (GPTK) solo lo necesitan los juegos DX12 (p. ej. Diablo IV)
@@ -46,6 +47,6 @@ La receta está adaptada de [mikaelhug/Silo](https://github.com/mikaelhug/Silo) 
 
 - Wine / CrossOver sources: LGPL-2.1. Redistribuimos binarios con la licencia y la referencia al
   código fuente correspondiente.
-- Librerías de `lib/external`: cada una conserva su licencia (gnutls, nettle y gmp: LGPL; freetype:
+- Librerías empaquetadas: cada una conserva su licencia (gnutls, nettle y gmp: LGPL; freetype:
   FTL/GPL-2; SDL2: zlib; MoltenVK: Apache 2.0).
 - Kalimotxo no redistribuye D3DMetal.
