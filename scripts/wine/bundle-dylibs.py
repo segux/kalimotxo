@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Make a Wine build self-contained: copy the x86_64 dylib chains it loads at
-runtime into `<wine>/lib/external`.
+runtime into `<wine>/lib/wine/x86_64-unix`, next to Wine's unix modules.
 
 Wine dlopen()s these by leaf name (libgnutls.30.dylib for TLS, libfreetype for
 fonts, libSDL2 for controllers, libMoltenVK for Vulkan). On Apple Silicon users
-have no x86_64 copies of them, so the runtime must ship its own. Kalimotxo adds
-`lib/external` to DYLD_FALLBACK_LIBRARY_PATH and copies the chain next to
-winevulkan.so / secur32.so (see src/backend/wine/wineRuntimeLibs.ts).
+have no x86_64 copies of them, so the runtime must ship its own. The unix
+modules carry an `@loader_path/` rpath, so dyld finds the libraries in their
+own directory. DYLD_FALLBACK_LIBRARY_PATH is not an option: macOS strips DYLD_*
+from Wine's child processes (see src/backend/wine/wineRuntimeLibs.ts).
 
 Each library is copied under its real file name, gets the install id
 `@rpath/<name>`, and has its Homebrew dependencies rewritten to
@@ -57,7 +58,7 @@ def main() -> None:
     if len(sys.argv) < 4:
         raise SystemExit(__doc__)
     wine_dir, brew_prefix, roots = sys.argv[1], sys.argv[2].rstrip("/"), sys.argv[3:]
-    dest = os.path.join(wine_dir, "lib", "external")
+    dest = os.path.join(wine_dir, "lib", "wine", "x86_64-unix")
     os.makedirs(dest, exist_ok=True)
 
     # Walk the dependency graph from the roots; key by real path.
