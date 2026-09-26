@@ -24,8 +24,12 @@ SDL2_VERSION=2.32.10
 MOLTENVK_VERSION="${MOLTENVK_VERSION:-v1.3.0}"
 
 export MACOSX_DEPLOYMENT_TARGET=11.0
-export CC="clang -arch x86_64"
-export CXX="clang++ -arch x86_64"
+# Absolute Xcode compilers: llvm-mingw (on PATH for Wine) ships its own clang,
+# which has no macOS SDK.
+CLANG="$(xcrun -f clang)"
+CLANGXX="$(xcrun -f clang++)"
+export CC="$CLANG -arch x86_64"
+export CXX="$CLANGXX -arch x86_64"
 export CPPFLAGS="-I$PREFIX/include"
 export LDFLAGS="-L$PREFIX/lib"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
@@ -72,6 +76,7 @@ autotools freetype --with-harfbuzz=no --with-brotli=no --with-png=no --with-bzip
 echo "==> SDL2 $SDL2_VERSION"
 fetch "https://github.com/libsdl-org/SDL/releases/download/release-$SDL2_VERSION/SDL2-$SDL2_VERSION.tar.gz" sdl2
 cmake -S sdl2 -B sdl2/build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER="$CLANG" -DCMAKE_CXX_COMPILER="$CLANGXX" \
   -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX" -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
 cmake --build sdl2/build -j"$JOBS"

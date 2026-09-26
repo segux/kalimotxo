@@ -105,7 +105,8 @@ jobs:
           export PKG_CONFIG_PATH="$DEPS/lib/pkgconfig"
           export CPPFLAGS="-I$DEPS/include"
           export LDFLAGS="-L$DEPS/lib"
-          export CC="clang -arch x86_64" CXX="clang++ -arch x86_64"
+          # Absolute Xcode clang: llvm-mingw's own clang (on PATH) has no macOS SDK.
+          export CC="$(xcrun -f clang) -arch x86_64" CXX="$(xcrun -f clang++) -arch x86_64"
           bison --version | head -1
           x86_64-w64-mingw32-clang --version | head -1
           mkdir -p build wine-install
