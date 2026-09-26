@@ -1,0 +1,178 @@
+name: Build Wine (CrossOver sources)
+
+# Builds the "Battle.net ready" Wine from CodeWeavers' CrossOver LGPL sources
+# and publishes it as a release asset that Kalimotxo downloads, so users do not
+# depend on a third-party prebuilt. The release contains free software only:
+# no Apple GPTK / D3DMetal (Kalimotxo fetches that separately when a DX12 game
+# needs it). The Battle.net client and D2R run on this Wine + DXMT + MoltenVK.
+#
+# Recipe adapted from mikaelhug/Silo (LGPL-2.1), .github/workflows/build-wine.yml.
+# See docs/wine-build.md.
+
+on:
+  # Pushing a `ci/wine-*` branch builds the default version without publishing,
+  # to iterate on the recipe before it lands on main.
+  push:
+    branches: ['ci/wine-*']
+    paths: ['.github/workflows/build-wine.yml', 'scripts/wine/**']
+  workflow_dispatch:
+    inputs:
+      crossover_version:
+        description: CrossOver source version (media.codeweavers.com/pub/crossover/source/)
+        required: true
+        default: 26.1.0
+      publish:
+        description: Publish a GitHub release (otherwise only a workflow artifact)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-wine-${{ inputs.crossover_version || '26.1.0' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Apple Silicon runner; Wine is built for x86_64 and runs under Rosetta.
+    runs-on: macos-15
+    timeout-minutes: 240
+    env:
+      X86: arch -x86_64
+      BREW: /usr/local/bin/brew
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+      CX_VERSION: ${{ inputs.crossover_version || '26.1.0' }}
+      TAG: wine-cx-${{ inputs.crossover_version || '26.1.0' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rosetta 2
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: Install x86_64 build dependencies
+        run: |
+          set -euo pipefail
+          if [ ! -x "$BREW" ]; then
+            $X86 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          # The runner pre-seeds /usr/local/bin with Python.framework shims that
+          # block Homebrew from linking python (pulled in as a dependency).
+          for shim in /usr/local/bin/*; do
+            if [ -L "$shim" ] && readlink "$shim" | grep -q Python.framework; then
+              sudo rm -f "$shim"
+            fi
+          done
+          $X86 "$BREW" install bison mingw-w64 freetype gnutls sdl2 molten-vk pkgconf ccache || true
+          for f in bison mingw-w64 freetype gnutls sdl2 molten-vk pkgconf ccache; do
+            $X86 "$BREW" --prefix "$f" >/dev/null || { echo "::error::missing $f"; exit 1; }
+          done
+
+      - name: Fetch CrossOver sources
+        run: |
+          set -euo pipefail
+          URL="https://media.codeweavers.com/pub/crossover/source/crossover-sources-${CX_VERSION}.tar.gz"
+          curl -fL -A "Mozilla/5.0" "$URL" -o crossover-sources.tar.gz
+          shasum -a 256 crossover-sources.tar.gz | tee crossover-sources.sha256
+          mkdir -p src && tar -xzf crossover-sources.tar.gz -C src
+          WINE_SRC=$(find src -maxdepth 3 -type d -name wine | head -1)
+          test -f "$WINE_SRC/configure"
+          echo "WINE_SRC=$GITHUB_WORKSPACE/$WINE_SRC" >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-wine-${{ inputs.crossover_version || '26.1.0' }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-wine-${{ inputs.crossover_version || '26.1.0' }}-
+            ccache-wine-
+
+      - name: Configure and build Wine (WoW64, x86_64)
+        run: |
+          set -euo pipefail
+          P() { $X86 "$BREW" --prefix "$1"; }
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export PATH="$(P ccache)/libexec:$(P bison)/bin:$(P mingw-w64)/bin:$(P pkgconf)/bin:$PATH"
+          export PKG_CONFIG_PATH="$(P gnutls)/lib/pkgconfig:$(P freetype)/lib/pkgconfig:$(P sdl2)/lib/pkgconfig:/usr/local/lib/pkgconfig"
+          export CPPFLAGS="-I$(P molten-vk)/include -I/usr/local/include"
+          export LDFLAGS="-L$(P molten-vk)/lib -L/usr/local/lib"
+          export CC="clang -arch x86_64" CXX="clang++ -arch x86_64"
+          mkdir -p build wine-install
+          cd build
+          # -fvisibility=default keeps winemac.drv's Metal helpers visible to
+          # D3DMetal/DXMT (layered windows present black otherwise).
+          $X86 env CFLAGS="-O2 -fvisibility=default" CROSSCFLAGS="-O2 -fvisibility=default" \
+            "$WINE_SRC/configure" \
+              --prefix="$GITHUB_WORKSPACE/wine-install" \
+              --enable-archs=i386,x86_64 \
+              --disable-tests \
+              --without-x \
+              --without-gstreamer \
+              --with-freetype --with-gnutls --with-sdl --with-vulkan
+          grep -E "SONAME_LIB(GNUTLS|FREETYPE|SDL2|MOLTENVK)" include/config.h
+          $X86 make -j"$(sysctl -n hw.ncpu)"
+          $X86 make install
+          test -x "$GITHUB_WORKSPACE/wine-install/bin/wine"
+          test -x "$GITHUB_WORKSPACE/wine-install/bin/wineserver"
+
+      - name: Bundle runtime dylibs
+        run: |
+          set -euo pipefail
+          P() { $X86 "$BREW" --prefix "$1"; }
+          python3 scripts/wine/bundle-dylibs.py wine-install /usr/local \
+            "$(P gnutls)/lib/libgnutls.30.dylib" \
+            "$(P freetype)/lib/libfreetype.6.dylib" \
+            "$(P sdl2)/lib/libSDL2-2.0.0.dylib" \
+            "$(P molten-vk)/lib/libMoltenVK.dylib"
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          export DYLD_FALLBACK_LIBRARY_PATH="$GITHUB_WORKSPACE/wine-install/lib/external"
+          $X86 wine-install/bin/wine --version
+          export WINEPREFIX="$RUNNER_TEMP/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
+          $X86 wine-install/bin/wine wineboot --init
+          $X86 wine-install/bin/wineserver -w
+          $X86 wine-install/bin/wine cmd /c ver
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          # LGPL: ship the licence and point to the exact corresponding source.
+          cp "$WINE_SRC/COPYING.LIB" "$WINE_SRC/LICENSE" wine-install/ 2>/dev/null || cp "$WINE_SRC/COPYING.LIB" wine-install/
+          cat > wine-install/SOURCE.md <<EOF
+          # Kalimotxo Wine ${CX_VERSION}
+
+          Built from CodeWeavers' CrossOver ${CX_VERSION} LGPL sources, unmodified:
+          https://media.codeweavers.com/pub/crossover/source/crossover-sources-${CX_VERSION}.tar.gz
+          (sha256 $(cut -d' ' -f1 crossover-sources.sha256))
+
+          Build recipe: https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.github/workflows/build-wine.yml
+          Bundled x86_64 libraries (lib/external) come from Homebrew; each keeps its own licence.
+          EOF
+          mv wine-install "$TAG"
+          tar -cJf "$TAG.tar.xz" "$TAG"
+          shasum -a 512 "$TAG.tar.xz" > "$TAG.tar.xz.sha512sum"
+          ls -la "$TAG".tar.xz*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TAG }}
+          path: |
+            ${{ env.TAG }}.tar.xz
+            ${{ env.TAG }}.tar.xz.sha512sum
+          retention-days: 14
+
+      - name: Publish release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "$TAG.tar.xz" "$TAG.tar.xz.sha512sum" \
+            --title "Wine CrossOver ${CX_VERSION}" \
+            --notes "Wine built from CodeWeavers' CrossOver ${CX_VERSION} LGPL sources for Kalimotxo (x86_64, runs under Rosetta). Free software only — see SOURCE.md inside the archive." \
+            --latest=false
