@@ -50,4 +50,8 @@ jobs:
         run: pnpm run build
 
       - name: Package (electron-builder, unsigned)
-        run: pnpm exec electron-builder --mac --publish=never
+        # predist:mac generates build/icon.icns and build/dmg-background.png;
+        # build/ is gitignored, so they must be created before packaging.
+        run: |
+          pnpm run predist:mac
+          pnpm exec electron-builder --mac --publish=never
