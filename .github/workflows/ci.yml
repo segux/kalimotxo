@@ -55,3 +55,11 @@ jobs:
         run: |
           pnpm run predist:mac
           pnpm exec electron-builder --mac --publish=never
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kalimotxo-${{ github.sha }}-arm64-dmg
+          path: dist/mac/*.dmg
+          if-no-files-found: error
+          retention-days: 30
