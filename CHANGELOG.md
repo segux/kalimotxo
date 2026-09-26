@@ -5,14 +5,10 @@
 
 * disable mf/winegstreamer completely (empty override) to prevent crash dialog ([02ac630](https://github.com/segux/kalimotxo/commit/02ac630d95496b8dc9ecd665e7fe4bacca7c6241))
 
-# [1.1.0](https://github.com/segux/kalimotxo/compare/v1.0.0...v1.1.0) (2026-06-10)
+# 0.2.0 (2026-06-10)
 
-
-### Features
-
-* DMG installer background with Kalimotxo logo ([f951576](https://github.com/segux/kalimotxo/commit/f951576371a33be624140843aabd2d94b081d81f))
-
-# 1.0.0 (2026-06-10)
+First public release. Releases briefly published as 0.0.1, 1.0.0 and 1.1.0 while
+the release pipeline was being fixed were withdrawn; their changes are listed here.
 
 
 ### Bug Fixes
@@ -35,20 +31,7 @@
 
 ### Features
 
+* DMG installer background with Kalimotxo logo ([f951576](https://github.com/segux/kalimotxo/commit/f951576371a33be624140843aabd2d94b081d81f))
 * production packaging + CI/CD pipeline for macOS ([576c83e](https://github.com/segux/kalimotxo/commit/576c83ecd3cdb60b0ca74fa1910c5623ecfb5e21))
 * rebrand tagline to 'Windows gaming on Apple Silicon' ([baee71f](https://github.com/segux/kalimotxo/commit/baee71f3b04776d1ca9a38a8866ca7892e68ffb8))
 * Wine manager for Battle.net on Apple Silicon ([7993e16](https://github.com/segux/kalimotxo/commit/7993e16195b998ccaa423040d58161241eafc63f))
-
-## [0.0.1](https://github.com/segux/kalimotxo/compare/v0.0.0...v0.0.1) (2026-06-10)
-
-
-### Bug Fixes
-
-* **ci:** use persist-credentials for git push permissions ([c3e0f89](https://github.com/segux/kalimotxo/commit/c3e0f8981e875603d5770b0ef46667d072ad8ef7))
-
-## [0.0.1](https://github.com/segux/kalimotxo/compare/v0.0.0...v0.0.1) (2026-06-10)
-
-
-### Bug Fixes
-
-* **ci:** disable husky hooks in release workflow (gitleaks not on CI) ([2bba6bc](https://github.com/segux/kalimotxo/commit/2bba6bc530881380caf7de87eb6393729b6ed74f))
