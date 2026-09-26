@@ -7,6 +7,7 @@ import { loadGlobalConfig, saveGlobalConfig } from '../config/paths'
 import { findWine64 } from '../setup/runtime'
 import { findRelease, getActiveVersionId } from './manager/catalog'
 import type { KalimotxoWineSettings, WineInstallation, WineLayerPreference } from './types'
+import { wineserverSibling } from './wineserverPath'
 
 export const CROSSOVER_BOTTLES_DIR = join(
   homedir(),
@@ -43,7 +44,7 @@ function wineExecs(wineBin: string): Pick<WineInstallation, 'bin' | 'wineserver'
   // produce a path that doesn't exist (spawn would fail with ENOENT).
   const binAsWine = wineBin.replace(/wine64$/, 'wine')
   const bin = binAsWine !== wineBin && existsSync(binAsWine) ? binAsWine : wineBin
-  const wineserver = wineBin.replace(/wine64?$/, 'wineserver')
+  const wineserver = wineserverSibling(wineBin)
   return {
     bin,
     wineserver: existsSync(wineserver) ? wineserver : undefined

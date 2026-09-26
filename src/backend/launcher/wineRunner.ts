@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, writeFileSync } from 'fs'
+import { createWriteStream, existsSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { ChildProcess } from 'child_process'
 import { execSync, spawn as cpSpawn, spawnSync } from 'child_process'
@@ -13,6 +13,7 @@ import { mergeDllOverrides, setupWineEnvVars } from '../wine/wineEnv'
 import type { WineInstallation } from '../wine/types'
 import { filterWinetricksLogLine } from '../tools/winetricksLog'
 import { killWineServersForBottle } from '../wine/wineServerKill'
+import { resolveWineserver } from '../wine/wineserverPath'
 
 let cachedInstallation: WineInstallation | null = null
 
@@ -83,18 +84,24 @@ export function attachWineProcessLog(
   logPath: string,
   onLine?: (line: string) => void
 ): void {
+  // Async stream: sync appends on every chunk block the Electron main thread
+  // while a chatty game or the Battle.net client is running.
+  const out = createWriteStream(logPath, { flags: 'a' })
+  out.on('error', () => {
+    /* log is best effort */
+  })
   const write = (chunk: Buffer | string): void => {
-    const text = chunk.toString()
-    appendFileSync(logPath, text)
-    for (const raw of text.split(/\r?\n/)) {
+    out.write(chunk)
+    if (!onLine) return
+    for (const raw of chunk.toString().split(/\r?\n/)) {
       const line = filterWinetricksLogLine(raw)
-      if (line) onLine?.(line)
+      if (line) onLine(line)
     }
   }
   proc.stdout?.on('data', write)
   proc.stderr?.on('data', write)
-  proc.on('exit', (code) => {
-    appendFileSync(logPath, `\n--- wine exit ${code ?? '?'} ---\n`)
+  proc.on('close', (code) => {
+    out.end(`\n--- wine exit ${code ?? '?'} ---\n`)
   })
 }
 
@@ -121,11 +128,13 @@ export function runExe(
     stdio: ['ignore', 'pipe', 'pipe']
   })
   if (options?.logPath) {
-    attachWineProcessLog(proc, options.logPath, (line) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[wine] ${line}`)
-      }
-    })
+    attachWineProcessLog(
+      proc,
+      options.logPath,
+      process.env.NODE_ENV === 'development'
+        ? (line): void => console.log(`[wine] ${line}`)
+        : undefined
+    )
   }
   proc.unref()
   return proc
@@ -133,8 +142,7 @@ export function runExe(
 
 export function killBottle(bottleName: string): void {
   const installation = activeInstallation()
-  const wineserver =
-    installation.wineserver ?? installation.bin.replace(/wine64?$/, 'wineserver')
+  const wineserver = resolveWineserver(installation)
   if (!existsSync(wineserver)) return
   const env = buildEnv(bottleName)
   spawnSync(wineserver, ['-k'], { env, timeout: 15_000 })
@@ -154,8 +162,7 @@ export function stopWineProcesses(
   if (!options?.wait) return
 
   const installation = activeInstallation()
-  const wineserver =
-    installation.wineserver ?? installation.bin.replace(/wine64?$/, 'wineserver')
+  const wineserver = resolveWineserver(installation)
   if (wineserver && existsSync(wineserver)) {
     spawnSync(wineserver, ['-w'], { env, timeout: 90_000 })
   }

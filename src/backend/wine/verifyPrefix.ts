@@ -40,7 +40,9 @@ export function verifyWinePrefix(
     return { ok: true, message: 'Prefix Wine listo' }
   }
 
-  const wine64 = installation.bin.replace(/wine$/, 'wine64')
+  // Wine 11 (WoW64) ships a single `wine` binary, no `wine64`.
+  const wine64Candidate = installation.bin.replace(/wine$/, 'wine64')
+  const wine64 = existsSync(wine64Candidate) ? wine64Candidate : installation.bin
   const env = setupWineEnvVars(
     { ...process.env, WINEDEBUG: '-all' },
     installation,
