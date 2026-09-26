@@ -15,14 +15,13 @@ export interface WineRepository {
 /** Mismos repos que Heroic / kalimotxo Python. */
 export const MACOS_REPOSITORIES: WineRepository[] = [
   {
-    // "Battle.net ready" runtime: Wine 11 (CodeWeavers) + DXMT + D3DMetal +
-    // MoltenVK from the D4Mac stack. The only build that supports WRITECOPY and
-    // starts the CEF client on Apple Silicon. No public release API — installed
-    // from a local bundle (see docs/battlenet-wine-problemas-y-roadmap.md).
+    // "Battle.net ready" runtime: Wine built by Kalimotxo's CI from CodeWeavers'
+    // CrossOver LGPL sources (WRITECOPY, msync, CEF fixes), published as
+    // `wine-cx-<version>` releases of this repo. See docs/wine-build.md.
     id: 'wine-battlenet',
-    name: 'Wine Battle.net (D4Mac)',
+    name: 'Wine Battle.net (CrossOver)',
     typeLabel: 'Wine-BattleNet',
-    apiUrl: '',
+    apiUrl: 'https://api.github.com/repos/segux/kalimotxo/releases',
     installCategory: 'wine'
   },
   {

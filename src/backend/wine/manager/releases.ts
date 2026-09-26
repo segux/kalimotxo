@@ -3,7 +3,13 @@ import { existsSync } from 'fs'
 import type { WineRepository } from './repositories'
 import type { WineRelease } from './types'
 
+/** Tag prefix of the Wine builds published by Kalimotxo's own CI. */
+export const BATTLENET_WINE_TAG_PREFIX = 'wine-cx-'
+
 function versionName(wineType: string, tag: string): string {
+  if (wineType === 'Wine-BattleNet') {
+    return `Wine-BattleNet-CX-${tag.slice(BATTLENET_WINE_TAG_PREFIX.length)}`
+  }
   if (wineType.includes('Wine')) return `Wine-${tag}`
   return tag
 }
@@ -56,6 +62,8 @@ export async function fetchRepositoryReleases(
     for (const release of data) {
       const tag = release.tag_name ?? ''
       if (!tag) continue
+      // The app's own releases live in the same repo: keep only Wine builds.
+      if (repo.id === 'wine-battlenet' && !tag.startsWith(BATTLENET_WINE_TAG_PREFIX)) continue
       const { download, downsize, checksum } = pickAssets(
         repo.typeLabel,
         release.assets ?? []

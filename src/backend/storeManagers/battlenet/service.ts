@@ -86,6 +86,7 @@ import {
 } from './games'
 import { isD3dmetalInstalled } from '../../setup/runtimePaths'
 import { friendlyProgressMessage } from './progressMessages'
+import { ensureBattleNetReadyWine } from '../../wine/manager/battlenetWine'
 
 let installRunning = false
 let repairRunning = false
@@ -225,6 +226,10 @@ async function runInstallPipeline(): Promise<[boolean, string]> {
     return [false, 'Battle.net is already installed. Use Uninstall to remove it.']
   }
   setProgress('runtime', 5, 'Preparing Wine and tools...')
+  const wineReady = await ensureBattleNetReadyWine(logInstall, (pct, msg) =>
+    setProgress('runtime', 5 + Math.floor(pct * 0.03), msg)
+  )
+  if (!wineReady) logInstall('Warning: no Battle.net-ready Wine — using the active Wine')
   const { ensureRuntimeReady } = await import('../../setup/ensureEnvironment')
   const [rtOk, rtMsg] = await ensureRuntimeReady((m) => {
     logInstall(m)
@@ -621,6 +626,10 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     // Reattach the bridge/Agent and bring the window forward instead.
     if (isClientRunning()) {
       return await reattachRunningClient(log)
+    }
+
+    if (!(await ensureBattleNetReadyWine(log))) {
+      log('Warning: no Battle.net-ready Wine — using the active Wine')
     }
 
     const { ensureBattleNetBottleDeps } = await import('../../setup/ensureEnvironment')

@@ -1,4 +1,5 @@
-import { createWriteStream, existsSync, mkdirSync, rmSync } from 'fs'
+import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync } from 'fs'
+import { createHash } from 'crypto'
 import { join } from 'path'
 import { execSync } from 'child_process'
 
@@ -65,6 +66,23 @@ async function downloadFile(
   })
 }
 
+/** Compares the archive with a published `*.sha512sum` file (`<hex>  <name>`). */
+async function verifySha512(archive: string, checksumUrl: string): Promise<void> {
+  const res = await fetch(checksumUrl)
+  if (!res.ok) throw new Error(`Checksum download failed: HTTP ${res.status}`)
+  const expected = (await res.text()).trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  const hash = createHash('sha512')
+  await new Promise<void>((resolve, reject) => {
+    createReadStream(archive)
+      .on('data', (chunk) => hash.update(chunk))
+      .on('end', () => resolve())
+      .on('error', reject)
+  })
+  if (hash.digest('hex') !== expected) {
+    throw new Error('Checksum mismatch: the downloaded Wine is corrupt, try again')
+  }
+}
+
 function extractTar(archive: string, dest: string): void {
   mkdirSync(dest, { recursive: true })
   if (archive.endsWith('.tar.xz')) {
@@ -90,6 +108,11 @@ export function pickHeroicDefaultWineVersion(catalog?: WineRelease[]): string | 
   if (process.platform !== 'darwin') return null
   const list = catalog ?? loadCatalog()
   const preferCrossover = process.arch === 'x64' || !isMacSonomaOrHigher()
+  // Kalimotxo's own CrossOver build runs Battle.net; prefer it on Apple Silicon.
+  const battleNet = 'Wine-BattleNet-latest'
+  if (!preferCrossover && list.some((r) => r.version === battleNet && r.download)) {
+    return battleNet
+  }
   const primary = preferCrossover ? 'Wine-Crossover-latest' : 'Game-Porting-Toolkit-latest'
   if (list.some((r) => r.version === primary && r.download)) return primary
   const staging = 'Wine-Staging-macOS-latest'
@@ -203,6 +226,15 @@ export async function installWineVersionSync(
     await downloadFile(release.download, archive, (p) =>
       progress(p, `Downloading ${archiveName}...`)
     )
+    if (release.checksum.endsWith('sha512sum')) {
+      progress(100, 'Verifying download...')
+      try {
+        await verifySha512(archive, release.checksum)
+      } catch (e) {
+        rmSync(archive, { force: true })
+        throw e
+      }
+    }
     setInstallState({ status: 'extracting', percent: 100, message: 'Extracting...' })
     if (existsSync(installDir)) rmSync(installDir, { recursive: true, force: true })
     extractTar(archive, installDir)
