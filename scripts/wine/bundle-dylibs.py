@@ -30,8 +30,10 @@ def run(*args: str) -> str:
 
 
 def deps_of(path: str) -> list[str]:
+    # Only the x86_64 slice matters (Wine runs as x86_64); universal binaries
+    # such as MoltenVK would otherwise print one header per architecture.
     # Skip the first line (the file itself); strip the version suffix.
-    lines = run("otool", "-L", path).splitlines()[1:]
+    lines = run("otool", "-arch", "x86_64", "-L", path).splitlines()[1:]
     return [l.strip().split(" (compatibility")[0] for l in lines if l.strip()]
 
 
