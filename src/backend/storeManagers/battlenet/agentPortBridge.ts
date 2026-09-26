@@ -26,7 +26,7 @@ const AGENT_FIXED_PORT = 1120
 
 let server: net.Server | null = null
 
-function agentDatPath(bottleName: string): string {
+export function agentDatPath(bottleName: string): string {
   return join(battleNetDriveC(bottleName), 'ProgramData', 'Battle.net', 'Agent.dat')
 }
 
@@ -40,21 +40,50 @@ export function readAgentPort(bottleName = BATTLENET_BOTTLE): number | null {
   }
 }
 
-function pipeConnection(client: net.Socket, resolvePort: () => number | null): void {
+const CONNECT_RETRY_MS = 250
+
+/**
+ * Pipes the client to the Agent. If the Agent is not listening yet (client
+ * started before it, or the Agent is restarting after a self-update), retry
+ * until the deadline instead of refusing, which the client reports as
+ * BLZBNTBNA00000005.
+ */
+function pipeConnection(
+  client: net.Socket,
+  resolvePort: () => number | null,
+  deadline: number
+): void {
+  const retry = (): void => {
+    if (client.destroyed) return
+    if (Date.now() >= deadline) {
+      client.destroy()
+      return
+    }
+    setTimeout(() => pipeConnection(client, resolvePort, deadline), CONNECT_RETRY_MS)
+  }
   const port = resolvePort()
   if (!port) {
-    client.destroy()
+    retry()
     return
   }
   const upstream = net.connect({ host: '127.0.0.1', port })
-  const cleanup = (): void => {
-    client.destroy()
+  upstream.once('connect', () => {
+    const cleanup = (): void => {
+      client.destroy()
+      upstream.destroy()
+    }
+    client.on('error', cleanup)
+    upstream.on('error', cleanup)
+    client.on('close', cleanup)
+    upstream.on('close', cleanup)
+    client.pipe(upstream)
+    upstream.pipe(client)
+    client.resume()
+  })
+  upstream.once('error', () => {
     upstream.destroy()
-  }
-  client.on('error', cleanup)
-  upstream.on('error', cleanup)
-  client.pipe(upstream)
-  upstream.pipe(client)
+    retry()
+  })
 }
 
 export type AgentPortBridgeOptions = {
@@ -62,6 +91,8 @@ export type AgentPortBridgeOptions = {
   listenPort?: number
   /** Target (Agent) port resolver; defaults to reading the bottle's Agent.dat. */
   resolvePort?: () => number | null
+  /** How long a client connection waits for the Agent to listen. */
+  connectTimeoutMs?: number
 }
 
 /**
@@ -75,7 +106,12 @@ export function startAgentPortBridge(
   if (server) return server
   const listenPort = options.listenPort ?? AGENT_FIXED_PORT
   const resolvePort = options.resolvePort ?? ((): number | null => readAgentPort(bottleName))
-  const srv = net.createServer((client) => pipeConnection(client, resolvePort))
+  const connectTimeoutMs = options.connectTimeoutMs ?? 10_000
+  const srv = net.createServer((client) => {
+    client.pause()
+    client.on('error', () => client.destroy())
+    pipeConnection(client, resolvePort, Date.now() + connectTimeoutMs)
+  })
   srv.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       // Something already listens on 1120 (another instance, a previous bridge,

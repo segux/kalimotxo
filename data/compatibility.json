@@ -80,6 +80,7 @@
     "name": "Diablo II: Resurrected",
     "publisher": "Blizzard Entertainment",
     "exe": "Program Files (x86)/Diablo II Resurrected/D2R.exe",
+    "bnet_product": "osi",
     "backend": "dxmt",
     "sync": "msync",
     "windows_version": "win10",

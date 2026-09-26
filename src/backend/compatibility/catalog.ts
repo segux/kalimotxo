@@ -15,6 +15,8 @@ export type GameProfile = {
   deps: string[]
   dll_overrides: Record<string, string>
   args?: string[]
+  /** Battle.net product code (Battle.net.config `Games` key), e.g. `osi` for D2R. */
+  bnet_product?: string
   notes?: string
   rating?: number
 }

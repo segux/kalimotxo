@@ -59,11 +59,44 @@ describe('agentPortBridge', () => {
     expect(reply).toBe('ping-1120')
   })
 
+  it('waits for the Agent to start listening instead of refusing', async () => {
+    const listenPort = await findFreePort()
+    let agentPort: number | null = null
+    startAgentPortBridge('Battle.net', {
+      listenPort,
+      resolvePort: () => agentPort
+    })
+    await new Promise((r) => setTimeout(r, 50))
+
+    const reply = new Promise<string>((resolve, reject) => {
+      const c = net.connect({ host: '127.0.0.1', port: listenPort }, () => {
+        c.write('early')
+      })
+      let buf = ''
+      c.on('data', (d) => {
+        buf += d.toString()
+        c.end()
+      })
+      c.on('end', () => resolve(buf))
+      c.on('error', reject)
+      setTimeout(() => reject(new Error('timeout')), 3000).unref()
+    })
+
+    // The Agent comes up after the client already connected.
+    await new Promise((r) => setTimeout(r, 600))
+    const agent = await startEchoServer()
+    cleanups.push(agent.close)
+    agentPort = agent.port
+
+    expect(await reply).toBe('early')
+  })
+
   it('closes the connection when no Agent port is available', async () => {
     const listenPort = await findFreePort()
     startAgentPortBridge('Battle.net', {
       listenPort,
-      resolvePort: () => null
+      resolvePort: () => null,
+      connectTimeoutMs: 300
     })
     await new Promise((r) => setTimeout(r, 50))
 

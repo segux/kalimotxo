@@ -19,7 +19,8 @@ import { getBottlePath } from '../../bottle'
 import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
-import { startAgentPortBridge } from './agentPortBridge'
+import { ensureAgentBridge } from './agentBridgeDaemon'
+import { resolveProfileDllOverrides } from './gameDefaults'
 import { markGameManaged, markPidManaged } from './gameWatcher'
 import { BATTLENET_BOTTLE, BATTLENET_LAUNCHER_BACKEND } from './constants'
 import { ensureLaunchDependencies } from './deps'
@@ -123,24 +124,12 @@ function buildGameLaunchEnv(
     }
   }
 
-  // Apply DLL overrides from the profile directly.
-  // CRITICAL: D3DMetal requires Wine builtins (not native) for d3d11/d3d12/dxgi.
-  // system32 holds CrossOver's D3DMetal-backed DLLs (dxgi.dll 93KB). For both
-  // dxmt and d3dmetal backends these must be loaded as builtin (from WINEDLLPATH)
-  // so Wine finds the real DXMT/D3DMetal DLLs instead of the CrossOver stubs.
-  const DXGI_DLLS = ['d3d11', 'd3d12', 'dxgi', 'd3d10core']
-  if (Object.keys(profile.dll_overrides).length > 0) {
-    const overrides = Object.entries(profile.dll_overrides).map(
-      ([dll, mode]) => {
-        if (
-          (profile.backend === 'd3dmetal' || profile.backend === 'dxmt') &&
-          DXGI_DLLS.includes(dll)
-        ) {
-          return `${dll}=builtin`
-        }
-        return `${dll}=${mode}`
-      }
-    )
+  // Apply DLL overrides from the profile directly (D3D/DXGI forced builtin for
+  // DXMT/D3DMetal so Wine loads them from WINEDLLPATH, not the system32 stubs).
+  const overrides = Object.entries(resolveProfileDllOverrides(profile)).map(
+    ([dll, mode]) => `${dll}=${mode}`
+  )
+  if (overrides.length) {
     env.WINEDLLOVERRIDES = mergeDllOverrides(env.WINEDLLOVERRIDES, overrides)
   }
 
@@ -242,7 +231,7 @@ export async function launchBlizzardGame(
 
   // Bridge 1120 -> Agent's real port (Agent.dat). Without it the client gets
   // CURL error=7 / BLZBNTBNA00000005. See agentPortBridge.ts.
-  startAgentPortBridge(BATTLENET_BOTTLE)
+  await ensureAgentBridge(BATTLENET_BOTTLE)
 
   // Build the env directly from the game profile (Heroic-style).
   // Do NOT rely on bottle.json being in the right state.

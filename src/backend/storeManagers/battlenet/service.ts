@@ -26,7 +26,17 @@ import {
 import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs, purgeBrokenWinetempSymlinks } from '../../wine/wineRuntimeLibs'
-import { startAgentPortBridge, stopAgentPortBridge } from './agentPortBridge'
+import { stopAgentPortBridge } from './agentPortBridge'
+import { ensureAgentBridge } from './agentBridgeDaemon'
+import { applyBattleNetLaunchArgs, applyGameAppDefaults } from './gameDefaults'
+import { startAgentSupervisor, stopAgentSupervisor } from './agentSupervisor'
+import {
+  isAgentRunning,
+  isClientRunning,
+  isClientStarting,
+  isClientUiReady,
+  listProcesses
+} from './processes'
 import { startGameWatcher, stopGameWatcher } from './gameWatcher'
 import { resetWineInstallationCache } from '../../launcher/wineRunner'
 import { logInfo } from '../../logger'
@@ -45,7 +55,6 @@ import {
   fixBrokenUpdateFolders,
   isBattleNetInstalled,
   isClientComplete,
-  isBattleNetWineProcessRunning,
   resolveBattleNetLaunchExe,
   stopBattleNetClientProcesses
 } from './client'
@@ -62,9 +71,12 @@ import {
   stopInstallerAgentWatchdog
 } from './installerPrep'
 import {
+  ensureRootAgentExe,
+  findAgentExe,
   isAgentLaunchReady,
   maintainBattleNetAgent,
-  stopBattleNetAgentProcesses
+  stopBattleNetAgentProcesses,
+  waitForAgentListening
 } from './agent'
 import {
   launchBlizzardGame,
@@ -529,6 +541,60 @@ export async function play(): Promise<{ success: boolean; message: string }> {
   return launch()
 }
 
+// CEF/Chromium flags for the client (CEF 108). See the comment in launch().
+const CLIENT_ARGS = [
+  '--use-angle=vulkan',
+  '--disable-gpu-compositing',
+  '--disable-direct-composition',
+  '--in-process-gpu'
+]
+
+/**
+ * Polls instead of a fixed sleep: returns as soon as a CEF renderer exists
+ * (window + web view up), or when the client died, or at the timeout.
+ */
+async function waitForClientStartup(
+  timeoutMs: number
+): Promise<{ state: 'ui-ready' | 'running' | 'exited'; elapsedMs: number }> {
+  const started = Date.now()
+  // Wine needs a moment to rename the process to its Windows title.
+  await new Promise((r) => setTimeout(r, 1_500))
+  let missing = 0
+  while (Date.now() - started < timeoutMs) {
+    const procs = listProcesses()
+    if (isClientUiReady(procs)) return { state: 'ui-ready', elapsedMs: Date.now() - started }
+    if (isClientStarting(procs)) missing = 0
+    else if (++missing >= 3) return { state: 'exited', elapsedMs: Date.now() - started }
+    await new Promise((r) => setTimeout(r, 1_000))
+  }
+  const state = isClientRunning() ? 'running' : 'exited'
+  return { state, elapsedMs: Date.now() - started }
+}
+
+/** Client already running: restore bridge + Agent and focus the window, without killing anything. */
+async function reattachRunningClient(
+  log: (m: string) => void
+): Promise<{ success: boolean; message: string }> {
+  log('Battle.net already open — reattaching (no restart)')
+  await ensureAgentBridge(BATTLENET_BOTTLE)
+  if (!isAgentRunning()) {
+    const agent = ensureRootAgentExe(BATTLENET_BOTTLE) ?? findAgentExe(BATTLENET_BOTTLE)
+    if (agent) {
+      log('Agent not running — starting it')
+      runExe(BATTLENET_BOTTLE, agent, {
+        battleNetEnv: true,
+        logPath: join(LOGS_DIR, 'battlenet-launch.log')
+      })
+      await waitForAgentListening(BATTLENET_BOTTLE, 20_000)
+    }
+  }
+  // A second Battle.net.exe hands off to the running instance, which shows its window.
+  const exe = resolveBattleNetLaunchExe()
+  if (exe) runExe(BATTLENET_BOTTLE, exe, { battleNetEnv: true, args: CLIENT_ARGS })
+  startAgentSupervisor(BATTLENET_BOTTLE)
+  return { success: true, message: 'Battle.net is already open.' }
+}
+
 export async function launch(): Promise<{ success: boolean; message: string }> {
   if (launchRunning) {
     return { success: false, message: 'Launch in progress — wait a few seconds' }
@@ -536,7 +602,9 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
   launchRunning = true
 
   const logPath = join(LOGS_DIR, 'battlenet-launch.log')
-  const log = (m: string): void => appendFileSync(logPath, m + '\n')
+  const t0 = Date.now()
+  const log = (m: string): void =>
+    appendFileSync(logPath, `[+${((Date.now() - t0) / 1000).toFixed(1)}s] ${m}\n`)
 
   try {
     mkdirSync(LOGS_DIR, { recursive: true })
@@ -549,12 +617,10 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
       }
     }
 
-    if (isBattleNetWineProcessRunning()) {
-      log('Battle.net open — closing and fully repairing Agent (BLZBNTBNA00000005)...')
-      stopBattleNetAgentProcesses()
-      stopBattleNetClientProcesses()
-      stopWineProcesses(BATTLENET_BOTTLE, { wait: false })
-      await new Promise((r) => setTimeout(r, 2500))
+    // Client already open: never kill it (that is what dropped the session).
+    // Reattach the bridge/Agent and bring the window forward instead.
+    if (isClientRunning()) {
+      return await reattachRunningClient(log)
     }
 
     const { ensureBattleNetBottleDeps } = await import('../../setup/ensureEnvironment')
@@ -589,6 +655,11 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
 
     stopWineProcesses(BATTLENET_BOTTLE, { wait: false })
 
+    // Client is closed here, so its config can be edited safely. Makes games
+    // started from Battle.net's Play button use the Kalimotxo game profile.
+    applyBattleNetLaunchArgs(BATTLENET_BOTTLE, log)
+    applyGameAppDefaults(BATTLENET_BOTTLE, log)
+
     const prep = prepareBattleNetWineLaunch(logPath)
     if (!prep.ok) return { success: false, message: prep.message }
 
@@ -607,8 +678,9 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     }
 
     // Bridge 1120 -> Agent's real port (Agent.dat). Without it the client gets
-    // CURL error=7 / BLZBNTBNA00000005. See agentPortBridge.ts.
-    startAgentPortBridge(BATTLENET_BOTTLE)
+    // CURL error=7 / BLZBNTBNA00000005. Detached so it survives quitting
+    // Kalimotxo. See agentPortBridge.ts / agentBridgeDaemon.ts.
+    await ensureAgentBridge(BATTLENET_BOTTLE)
 
     await maintainBattleNetAgent(BATTLENET_BOTTLE, {
       prepareLaunch: true,
@@ -643,26 +715,19 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     // Requires `vulkan-1=b` in WINEDLLOVERRIDES (see wineEnv.ts) so ANGLE uses
     // Wine's winevulkan (with VK_KHR_win32_surface) instead of the SwiftShader
     // `vulkan-1.dll` that Battle.net ships in its own folder.
-    runExe(BATTLENET_BOTTLE, exe, {
-      battleNetEnv: true,
-      logPath,
-      args: [
-        '--use-angle=vulkan',
-        '--disable-gpu-compositing',
-        '--disable-direct-composition',
-        '--in-process-gpu'
-      ]
-    })
+    runExe(BATTLENET_BOTTLE, exe, { battleNetEnv: true, logPath, args: CLIENT_ARGS })
 
-    await new Promise((r) => setTimeout(r, 12_000))
-
-    if (!isBattleNetWineProcessRunning()) {
+    const startup = await waitForClientStartup(12_000)
+    log(`Client startup: ${startup.state} after ${startup.elapsedMs} ms`)
+    if (startup.state === 'exited') {
       return {
         success: false,
         message:
           'Battle.net closed on startup. Click Open Battle.net again; if it persists, check Settings → Advanced.'
       }
     }
+
+    startAgentSupervisor(BATTLENET_BOTTLE)
 
     // The bottle config now sets msync + DXMT overrides + mf=d. D2R (and other
     // Blizzard games) launched by Battle.net through the Agent inherit these
@@ -694,6 +759,7 @@ export function checkClient(): { success: boolean; message: string } {
 }
 
 export function cancel(): { success: boolean; message: string } {
+  stopAgentSupervisor()
   stopInstallerAgentWatchdog()
   stopBlizzardSetupProcesses()
   stopBattleNetAgentProcesses()

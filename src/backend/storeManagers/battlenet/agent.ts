@@ -3,17 +3,21 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   rmSync,
   statSync
 } from 'fs'
 import { execSync } from 'child_process'
+import net from 'net'
 import { join } from 'path'
 
 import { battleNetDriveC } from './prefix'
 import { LOGS_DIR } from '../../config/paths'
 import { runExe, stopWineProcesses } from '../../launcher/wineRunner'
 import { BATTLENET_BOTTLE } from './constants'
+import { readAgentPort } from './agentPortBridge'
+import { isAgentRunning } from './processes'
 
 const AGENT_VERSION_RE = /^Agent\.\d+$/i
 /** Real Agent ~7 MB; root stub is typically ~600-650 KB. */
@@ -52,8 +56,10 @@ function logLine(
   opts: AgentMaintenanceOptions | undefined,
   line: string
 ): void {
-  opts?.log?.(line)
-  if (opts?.logPath) {
+  if (opts?.log) {
+    // The callback usually writes to the same file; avoid duplicate lines.
+    opts.log(line)
+  } else if (opts?.logPath) {
     mkdirSync(LOGS_DIR, { recursive: true })
     appendFileSync(opts.logPath, line + '\n')
   }
@@ -65,6 +71,21 @@ function agentExeIfValid(path: string): string | null {
     return statSync(path).size >= MIN_AGENT_EXE_BYTES ? path : null
   } catch {
     return null
+  }
+}
+
+function agentVersionOf(exePath: string): number {
+  const m = /Agent\.(\d+)[\\/]Agent\.exe$/i.exec(exePath)
+  return m ? Number(m[1]) : 0
+}
+
+function filesDiffer(a: string, b: string): boolean {
+  try {
+    if (!existsSync(b)) return true
+    if (statSync(a).size !== statSync(b).size) return true
+    return !readFileSync(a).equals(readFileSync(b))
+  } catch {
+    return true
   }
 }
 
@@ -92,7 +113,9 @@ export function findAgentExe(bottleName = BATTLENET_BOTTLE): string | null {
   const versionExes = collectVersionedAgentExes(agentRoot, pd)
 
   if (versionExes.length) {
-    versionExes.sort()
+    // Newest valid version: running an older Agent makes it fire "update agent
+    // event" and restart itself on every launch, which drops the client session.
+    versionExes.sort((a, b) => agentVersionOf(b) - agentVersionOf(a))
     return versionExes[0]!
   }
 
@@ -129,11 +152,10 @@ export function ensureRootAgentExe(bottleName = BATTLENET_BOTTLE): string | null
     return null
   }
   try {
-    const verSize = statSync(versioned).size
     let primary: string | null = null
     for (const target of battleNetAgentLaunchPaths(bottleName)) {
-      const cur = existsSync(target) ? statSync(target).size : 0
-      if (cur < MIN_AGENT_EXE_BYTES || cur < verSize) {
+      // Keep the launch paths in sync with the newest version (never downgrade).
+      if (filesDiffer(versioned, target)) {
         copyFileSync(versioned, target)
       }
       const valid = agentExeIfValid(target)
@@ -167,18 +189,36 @@ export function stopBattleNetAgentProcesses(): void {
   }
 }
 
-export function isBattleNetAgentProcessRunning(bottleName = BATTLENET_BOTTLE): boolean {
-  const patterns = ['Battle.net/Agent/Agent.exe', 'ProgramData/Battle.net/Agent']
-  for (const pattern of patterns) {
-    try {
-      const out = execSync(`pgrep -lf "${pattern}"`, {
-        encoding: 'utf-8',
-        timeout: 3000
-      })
-      if (/Agent\.exe/i.test(out)) return true
-    } catch {
-      /* try next */
+export function isBattleNetAgentProcessRunning(_bottleName = BATTLENET_BOTTLE): boolean {
+  return isAgentRunning()
+}
+
+function portAcceptsConnections(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const sock = net.connect({ host: '127.0.0.1', port })
+    const done = (ok: boolean): void => {
+      sock.destroy()
+      resolve(ok)
     }
+    sock.setTimeout(500, () => done(false))
+    sock.once('connect', () => done(true))
+    sock.once('error', () => done(false))
+  })
+}
+
+/**
+ * Polls until the Agent accepts connections on the port from `Agent.dat`.
+ * Replaces a fixed sleep: the Agent is usually ready in a few seconds.
+ */
+export async function waitForAgentListening(
+  bottleName = BATTLENET_BOTTLE,
+  timeoutMs = 20_000
+): Promise<boolean> {
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    const port = readAgentPort(bottleName)
+    if (port && (await portAcceptsConnections(port))) return true
+    await new Promise((r) => setTimeout(r, 500))
   }
   return false
 }
@@ -233,7 +273,12 @@ export function pruneBrokenAgentVersions(bottleName = BATTLENET_BOTTLE): string[
   ]
 }
 
-/** If multiple Agent.XXXX versions exist, remove the newest (typically the broken one under Wine). */
+/**
+ * If multiple Agent.XXXX versions exist AND the newest is broken (no valid exe),
+ * remove it so Battle.net falls back to the last known-good version.
+ * A valid newest version (e.g. a real auto-update) is kept — removing it would
+ * force the client into an update loop on every launch.
+ */
 function pruneNewestAgentVersionInDir(baseDir: string): string | null {
   if (!existsSync(baseDir)) return null
   let versions: string[] = []
@@ -246,8 +291,14 @@ function pruneNewestAgentVersionInDir(baseDir: string): string | null {
   }
   if (versions.length < 2) return null
   const newest = versions[versions.length - 1]!
+  const newestDir = join(baseDir, newest)
+  const newestExe = join(newestDir, 'Agent.exe')
+  const exeBytes = existsSync(newestExe) ? statSync(newestExe).size : 0
+  const isBroken =
+    !existsSync(newestExe) || exeBytes < MIN_AGENT_EXE_BYTES || folderSize(newestDir) < 200_000
+  if (!isBroken) return null
   try {
-    rmSync(join(baseDir, newest), { recursive: true, force: true })
+    rmSync(newestDir, { recursive: true, force: true })
     return newest
   } catch {
     return null
@@ -342,8 +393,9 @@ export async function maintainBattleNetAgent(
   } else if (options.wakeOnly) {
     stopBattleNetAgentProcesses()
     await new Promise((r) => setTimeout(r, 1500))
-  } else {
-    // Deep repair: wait for clean shutdown. Launch: -k only to avoid hanging if client is still open.
+  } else if (!options.prepareLaunch) {
+    // Deep repair: wait for clean shutdown. Launch skips this: launch() already
+    // stopped Wine, and a second kill forces another wineserver cold start.
     stopWineProcesses(bottleName, { wait: Boolean(options.deep) })
   }
 
@@ -376,8 +428,11 @@ export async function maintainBattleNetAgent(
     }
   }
 
-  const shouldResetDb =
-    options.deep || options.prepareLaunch || options.wake || options.installAssist
+  // Do NOT reset product.db on a normal launch (prepareLaunch). Without it
+  // the Agent fires "update agent event" on every startup, gets a 404 from the
+  // version server, and crashes when trying to restart itself. Reset only on
+  // explicit repair (deep) or installation flows.
+  const shouldResetDb = options.deep || options.wake || options.installAssist
   if (shouldResetDb && !options.launchOnly) {
     result.productDb = resetBattleNetAgentProductDb(bottleName)
     if (result.productDb) {
@@ -410,8 +465,18 @@ export async function maintainBattleNetAgent(
     } else {
       runExe(bottleName, agent, { battleNetEnv: true, logPath: options.logPath })
       logLine(options, 'Agent.exe started, waiting...')
-      const waitMs = options.prepareLaunch ? 12_000 : options.installAssist ? 6_000 : 4_000
-      await new Promise((r) => setTimeout(r, waitMs))
+      if (options.prepareLaunch) {
+        const t0 = Date.now()
+        const listening = await waitForAgentListening(bottleName, 20_000)
+        logLine(
+          options,
+          listening
+            ? `Agent listening after ${Date.now() - t0} ms`
+            : 'Agent not listening after 20 s'
+        )
+      } else {
+        await new Promise((r) => setTimeout(r, options.installAssist ? 6_000 : 4_000))
+      }
       if (!isBattleNetAgentProcessRunning(bottleName) && options.prepareLaunch) {
         logLine(options, 'Waiting for Agent after start...')
         const ready = await waitForValidAgent(bottleName, {

@@ -1,5 +1,8 @@
 import { execSync, spawnSync } from 'child_process'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
+import { getBottlePath } from '../../bottle'
 import { buildEnv, getWineBinary } from '../../launcher/wineRunner'
 import { resetBattleNetProgramData } from './agent'
 import { BATTLENET_BOTTLE } from './constants'
@@ -27,24 +30,51 @@ export function hostnameResolvesToLoopback(): { ok: boolean; hostname: string; h
   }
 }
 
-export function applyBattleNetUrlProtocols(bottleName = BATTLENET_BOTTLE): void {
-  const wine = getWineBinary(bottleName)
-  const env = buildEnv(bottleName)
-  const wineZ = spawnSync(wine, ['winepath', '-w', wine], { env, encoding: 'utf-8' })
-    .stdout?.trim()
-  const browserCmd = wineZ
-    ? `"${wineZ}" "%1"`
-    : '"C:\\windows\\system32\\winebrowser.exe" "%1"'
+const URL_PROTOCOLS_MARKER = '.kalimotxo-url-protocols'
 
-  for (const proto of ['battlenet', 'blizzard']) {
-    const root = `HKCR\\${proto}`
-    spawnSync(wine, ['reg', 'add', root, '/ve', '/d', `URL:${proto}`, '/f'], { env })
-    spawnSync(wine, ['reg', 'add', root, '/v', 'URL Protocol', '/d', '', '/f'], { env })
-    spawnSync(
-      wine,
-      ['reg', 'add', `${root}\\shell\\open\\command`, '/ve', '/d', browserCmd, '/f'],
-      { env }
-    )
+/**
+ * Registers battlenet:// and blizzard:// in the prefix. Runs once per Wine
+ * binary (the handler command embeds its path): each `wine reg` call cold-starts
+ * a wineserver, which used to add several seconds to every launch.
+ */
+export function applyBattleNetUrlProtocols(bottleName = BATTLENET_BOTTLE): void {
+  try {
+    const wine = getWineBinary(bottleName)
+    const marker = join(getBottlePath(bottleName), URL_PROTOCOLS_MARKER)
+    if (existsSync(marker) && readFileSync(marker, 'utf-8').trim() === wine) return
+    const env = buildEnv(bottleName)
+    // 8s cap: wineserver cold-start can be slow; URL protocol registration is
+    // non-critical so we must not block the main process waiting indefinitely.
+    const TIMEOUT = 8_000
+    const wineZ = spawnSync(wine, ['winepath', '-w', wine], {
+      env,
+      encoding: 'utf-8',
+      timeout: TIMEOUT
+    }).stdout?.trim()
+    const browserCmd = wineZ
+      ? `"${wineZ}" "%1"`
+      : '"C:\\windows\\system32\\winebrowser.exe" "%1"'
+
+    for (const proto of ['battlenet', 'blizzard']) {
+      const root = `HKCR\\${proto}`
+      spawnSync(wine, ['reg', 'add', root, '/ve', '/d', `URL:${proto}`, '/f'], {
+        env,
+        timeout: TIMEOUT
+      })
+      spawnSync(wine, ['reg', 'add', root, '/v', 'URL Protocol', '/d', '', '/f'], {
+        env,
+        timeout: TIMEOUT
+      })
+      spawnSync(
+        wine,
+        ['reg', 'add', `${root}\\shell\\open\\command`, '/ve', '/d', browserCmd, '/f'],
+        { env, timeout: TIMEOUT }
+      )
+    }
+    if (wineZ) writeFileSync(marker, wine + '\n')
+  } catch {
+    // Non-critical: URL protocols are cosmetic (battlenet:// deep links).
+    // A timeout here must not abort the launch.
   }
 }
 

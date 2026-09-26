@@ -1,4 +1,12 @@
-import { copyFileSync, existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'fs'
+import {
+  copyFileSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync
+} from 'fs'
 import { join } from 'path'
 import { execSync, spawnSync } from 'child_process'
 import { resolveCabextractPath } from '../../setup/toolPaths'
@@ -40,12 +48,33 @@ export function syncSyswow64VcDlls(bottleName = BATTLENET_BOTTLE): string[] {
   return copied
 }
 
-function extractUcrtFromCache(syswow64: string): string[] {
+const UCRT_EXTRACT_MARKER = '.kalimotxo-ucrt-extracted'
+
+function ucrtApiSetDeployed(syswow64: string): boolean {
+  return SYSWOW64_UCRT_API_MS.every((name) => {
+    const p = join(syswow64, name)
+    return existsSync(p) && statSync(p).size <= 60_000
+  })
+}
+
+function extractUcrtFromCache(syswow64: string, force = false): string[] {
+  // syncLaunchRuntime runs several times per launch and each extraction spawns
+  // cabextract twice. Skip it when the API set is in place or when this same
+  // installer was already extracted into the bottle (result would not change).
+  if (ucrtApiSetDeployed(syswow64)) return []
   if (!cabextractAvailable()) return []
 
   let installer = join(CACHE_DIR, 'vc_redist.x86.exe')
   if (!existsSync(installer)) installer = join(CACHE_DIR, 'vc_redist_2015.x86.exe')
   if (!existsSync(installer)) return []
+
+  const marker = join(syswow64, '..', '..', '..', UCRT_EXTRACT_MARKER)
+  const stamp = `${installer}:${statSync(installer).size}:${statSync(installer).mtimeMs}`
+  try {
+    if (!force && readFileSync(marker, 'utf-8') === stamp) return []
+  } catch {
+    /* first extraction */
+  }
 
   const deployed: string[] = []
   const tmp = mkdtempSync(join(tmpdir(), 'kalimotxo-ucrt-'))
@@ -80,6 +109,11 @@ function extractUcrtFromCache(syswow64: string): string[] {
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
+  try {
+    writeFileSync(marker, stamp)
+  } catch {
+    /* ignore */
+  }
   return deployed
 }
 
@@ -94,7 +128,8 @@ export function deploySyswow64Ucrt(bottleName = BATTLENET_BOTTLE): string[] {
       changes.push(`removed:${name}`)
     }
   }
-  changes.push(...extractUcrtFromCache(syswow64))
+  // Builtins were just removed: extract again even if this installer was seen.
+  changes.push(...extractUcrtFromCache(syswow64, changes.length > 0))
   const geo = join(syswow64, 'geolocation.dll')
   const loc = join(syswow64, 'locationapi.dll')
   if (existsSync(geo) && !existsSync(loc)) {

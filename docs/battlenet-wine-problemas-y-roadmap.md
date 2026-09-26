@@ -308,6 +308,29 @@ Pendiente: validar el flujo **completo desde la UI de Kalimotxo** (botón «Abri
 
 ---
 
+## Sesión 2026-09-26: arranque más rápido y pérdida de sesión
+
+**Pérdida de sesión / «reconectar».** Visto en los logs del Agent (`Agent-20260921T180633.log`): tras ~2 h el Agent se **auto-actualiza** (`update agent event` → `Restarting Agent: C:/ProgramData/Battle.net/Agent.exe` → `Agent is shutting down`); el *Switcher* arranca, pero el Agent nuevo no vuelve bajo Wine. El cliente se queda sin Agent. En el siguiente lanzamiento Kalimotxo empeoraba el problema:
+
+- `findAgentExe` elegía la versión **más antigua** (`sort()[0]`) y `ensureRootAgentExe` la copiaba sobre el `Agent.exe` raíz si era «más grande» → *downgrade* → el Agent vuelve a auto-actualizarse y a reiniciarse → sesión perdida otra vez.
+- `pruneNewestAgentVersionIfMultiple` borraba la versión nueva aunque fuera válida (visto en vivo: `Agent.9775` borrado al lanzar).
+- Pulsar «Abrir Battle.net» con el cliente abierto hacía `pkill -9` de todo (cliente + Agent + wineserver).
+- El puente 1120 vivía dentro de Kalimotxo: al cerrar la app, el cliente perdía el Agent.
+
+Fixes: versión **más reciente** del Agent y sin *downgrade* (comparación por contenido); no borrar la versión nueva válida; `launch()` **no mata** un cliente abierto (reengancha puente/Agent y lo trae al frente); **supervisor del Agent** (`agentSupervisor.ts`) que lo relanza si desaparece con el cliente abierto; **puente 1120 desacoplado** (`agentBridgeDaemon.ts`, proceso Node con `ELECTRON_RUN_AS_NODE`) que sobrevive al cierre de Kalimotxo y se apaga solo sin procesos Battle.net; el puente **espera** al Agent (reintentos 10 s) en vez de rechazar la conexión.
+
+**Arranque.** Antes: 12 s fijos esperando al Agent + 12 s fijos tras lanzar el cliente + doble `wineserver -k` (dos arranques en frío) + 7 `wine reg add` en cada lanzamiento. Ahora: espera activa hasta que el puerto de `Agent.dat` acepta conexiones y hasta que existe un renderer CEF; un solo stop de Wine; protocolos URL registrados una vez por Wine (marcador `.kalimotxo-url-protocols`). El log `battlenet-launch.log` lleva tiempos `[+N.Ns]`.
+
+**Juegos lanzados desde el botón «Jugar» de Battle.net.** Heredan el entorno del cliente, no el perfil de Kalimotxo (que solo se aplicaba al lanzar desde Kalimotxo). Ahora `gameDefaults.ts`, en cada `launch()` con el cliente cerrado, persiste en el bottle lo que Wine/Battle.net aplican por su cuenta: overrides de DLL por ejecutable en `HKCU\Software\Wine\AppDefaults\<exe>\DllOverrides` (un solo `regedit /S`, solo si cambian) y los argumentos del perfil en `Battle.net.config` → `Games.<producto>.AdditionalLaunchArguments` (D2R = `osi`, `-dx11`), sin pisar argumentos que haya puesto el usuario.
+
+**Registro y token de login.** El token vive en `user.reg` (`HKCU\Software\Blizzard Entertainment\Battle.net\UnifiedAuth`). `killWineServersForEnv` ya no hace `pkill -9 wineserver` si `wineserver -k` cerró el servidor de forma ordenada (que es cuando se vuelca el registro a disco).
+
+**Bug `wineserver` (afectaba a todos los usuarios).** La ruta del wineserver se derivaba con `/wine64?$/`, que significa «`wine6` + `4` opcional»: con un Wine que solo trae `bin/wine` (Wine 11, Staging) no se sustituía nada y el «wineserver» era el propio `wine`. Cada `stopWineProcesses` ejecutaba `wine -k` / `wine -w` (arranque en frío de Wine, o cuelgue hasta el timeout con Staging): ~30 s bloqueando el hilo principal, varias veces por reparación/instalación; además `WINESERVER` apuntaba a `wine`. Centralizado en `wine/wineserverPath.ts` (`/wine(64)?$/`). El `pkill -9 wineserver` global pasa a ser un SIGKILL solo al wineserver del prefix (vía el `lock` de `/tmp/.wine-<uid>/server-<dev>-<ino>/`), para no matar otros bottles.
+
+**Detección de procesos.** Wine renombra los procesos a su ruta Windows (`C:\ProgramData\Battle.net\Agent\Agent.exe`), así que los patrones `pgrep` con rutas Unix no detectaban el Agent. Nuevo `processes.ts` (lee `ps` una vez, acepta ambas formas).
+
+---
+
 ## Matriz rápida: síntoma → causa probable
 
 | Síntoma | Causa probable | Dirección |
@@ -322,6 +345,7 @@ Pendiente: validar el flujo **completo desde la UI de Kalimotxo** (botón «Abri
 | D2R crash `assertion failure exception` | Anti-cheat/SEH o D3DMetal no carga correctamente | Asegurar `libd3dshared.dylib` copiado a `lib/wine/x86_64-unix/` + `DOTNET_EnableWriteXorExecute=0` |
 | «Actualizando Wine» infinito | Cambio de Wine en prefix | Un Wine + wineboot |
 | Muchos `wine`/`Agent` | Sesiones de prueba | Matar wineserver entre intentos |
+| «Reconectar» / sesión perdida tras horas | Auto-update del Agent no vuelve bajo Wine; *downgrade* del Agent al relanzar | Supervisor del Agent + versión más reciente + puente desacoplado |
 
 ---
 
@@ -358,6 +382,8 @@ Lanzamiento manual con Wine D4Mac (extraído del `.zip` de releases) — **solo 
 
 | Fecha | Notas |
 |-------|-------|
+| 2026-09-26 (tarde) | **Bug `/wine64?$/`** → `stopWineProcesses` tardaba ~30 s y ejecutaba `wine` en vez de `wineserver`; ahora ~0,6 s. Parada de Wine limitada al prefix. Biblioteca de juegos no-Battle.net en bottle `Games` separado. |
+| 2026-09-26 | **Arranque más rápido + pérdida de sesión** (ver «Sesión 2026-09-26»): esperas activas en vez de 24 s fijos, sin doble arranque en frío de wineserver, Agent más reciente sin *downgrade*, supervisor del Agent, puente 1120 desacoplado, no matar el cliente al reabrir. |
 | 2026-06-07 | **Fix sincronización:** Battle.net y D2R pasan a `sync: "msync"` (antes `esync`). El wineserver del cliente necesita `WINEMSYNC=1` para que los juegos hijos (D2R) no crashen con `err:sync:msync_init`. `wineEnv.ts` ya no borra `WINEMSYNC`/`WINEESYNC` en modo `battleNetLaunch`. |
 | 2026-06-07 (noche) | **Investigación CrossOver 26.1.0 + D2R funcional:** Se descubrió que CrossOver usa `WINEMSYNC=1` (msync) para todo, tiene D3DMetal builtins parcheados en `lib/wine/x86_64-windows/`, y D2R se lanza con `-uid osi`. Implementado en Kalimotxo: copiar `libd3dshared.dylib` a `lib/wine/x86_64-unix/` (igual que MoltenVK/gnutls), añadir `DOTNET_EnableWriteXorExecute=0` para .NET bajo Rosetta. |
 | 2026-06-08 | **CrossOver Wine real binary support:** Se descubrió que el Wine de CrossOver tiene componentes críticos que nuestro Wine no tiene (`winewrapper.exe`, `wineloader`, `macdrv` alt-loader, 8720 commits de parches). `compatibilityLayers.ts` ahora detecta y prefiere el Wine real de CrossOver (`lib/wine/x86_64-unix/wine`) sobre el script Perl (`bin/wine`). `wineEnv.ts` maneja correctamente `WINEPREFIX` vs `CX_BOTTLE` dependiendo de qué binario se use. Tests añadidos. Esto permite que juegos con anti-cheat como D2R usen los parches de CrossOver sin depender del script Perl. |
