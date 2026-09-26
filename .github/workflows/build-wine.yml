@@ -37,7 +37,8 @@ jobs:
   build:
     # Apple Silicon runner; Wine is built for x86_64 and runs under Rosetta.
     runs-on: macos-15
-    timeout-minutes: 240
+    # GitHub's maximum: x86_64 Wine under Rosetta on a 3-core runner is slow.
+    timeout-minutes: 360
     env:
       X86: arch -x86_64
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -66,9 +67,11 @@ jobs:
           tar -xf llvm-mingw.tar.xz -C "$RUNNER_TEMP/llvm-mingw" --strip-components=1
           echo "$RUNNER_TEMP/llvm-mingw/bin" >> "$GITHUB_PATH"
 
+      # Restore and save are separate steps so the ~35 min dependency build is
+      # cached as soon as it succeeds, even if a later step fails.
       - name: Restore x86_64 dependencies
         id: deps-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: deps
           key: wine-deps-${{ hashFiles('scripts/wine/build-deps.sh') }}
@@ -76,6 +79,13 @@ jobs:
       - name: Build x86_64 dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: scripts/wine/build-deps.sh "$DEPS"
+
+      - name: Save x86_64 dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: deps
+          key: wine-deps-${{ hashFiles('scripts/wine/build-deps.sh') }}
 
       - name: Fetch CrossOver sources
         run: |
