@@ -86,10 +86,10 @@ cmake --install sdl2/build
 echo "==> MoltenVK $MOLTENVK_VERSION"
 curl -fsSL "https://github.com/KhronosGroup/MoltenVK/releases/download/$MOLTENVK_VERSION/MoltenVK-macos.tar" -o moltenvk.tar
 mkdir -p moltenvk && tar -xf moltenvk.tar -C moltenvk
-MVK_DYLIB="$(find moltenvk -path '*dynamic*' -name libMoltenVK.dylib | head -1)"
+MVK_DYLIB="$(find moltenvk -path '*dynamic*' -name libMoltenVK.dylib -print -quit)"
 test -n "$MVK_DYLIB"
 cp "$MVK_DYLIB" "$PREFIX/lib/"
-MVK_INCLUDE="$(find moltenvk -type d -name include -path '*MoltenVK*' | head -1)"
+MVK_INCLUDE="$(find moltenvk -type d -name include -path '*MoltenVK*' -print -quit)"
 if [ -n "$MVK_INCLUDE" ]; then cp -R "$MVK_INCLUDE/." "$PREFIX/include/"; fi
 
 echo "==> check architectures"
