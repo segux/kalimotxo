@@ -1,4 +1,20 @@
+import { existsSync } from 'fs'
+import { join } from 'path'
+import { dialog, shell } from 'electron'
 import { getEffectiveLocale, setStoredLocale } from '../config/locale'
+import { getBottlePath } from '../bottle'
+import { getMainWindow } from '../ipc'
+import { GAMES_BOTTLE } from '../library/bottle'
+import { getLibraryGame } from '../library/store'
+import {
+  addGame,
+  cancelInstall as cancelLibraryInstall,
+  installFromInstaller,
+  launchGame as launchLibraryGame,
+  listEntries,
+  removeGame,
+  updateGame
+} from '../library/service'
 import type { SupportedLocale } from '../../common/types/ipc'
 import { detectHardware, ensureDirectories } from '../config/paths'
 import { addHandler } from '../ipc'
@@ -186,6 +202,44 @@ export function registerAllHandlers(): void {
       recommendedCrossoverBottle: null,
       settings: getWineSettings()
     }
+  })
+
+  addHandler('libraryList', async () => listEntries())
+
+  addHandler('libraryPickFile', async (_e, kind) => {
+    const gamesDriveC = join(getBottlePath(GAMES_BOTTLE), 'drive_c')
+    const options: Electron.OpenDialogOptions = {
+      properties: ['openFile'],
+      filters:
+        kind === 'installer'
+          ? [{ name: 'Windows installer', extensions: ['exe', 'msi'] }]
+          : [{ name: 'Windows executable', extensions: ['exe'] }],
+      defaultPath: kind === 'exe' && existsSync(gamesDriveC) ? gamesDriveC : undefined
+    }
+    const win = getMainWindow()
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  })
+
+  addHandler('libraryInstall', async (_e, installerPath: string) =>
+    installFromInstaller(installerPath)
+  )
+
+  addHandler('libraryCancelInstall', async () => cancelLibraryInstall())
+
+  addHandler('libraryAddGame', async (_e, input) => addGame(input))
+
+  addHandler('libraryUpdateGame', async (_e, id: string, patch) => updateGame(id, patch))
+
+  addHandler('libraryRemoveGame', async (_e, id: string) => removeGame(id))
+
+  addHandler('libraryLaunchGame', async (_e, id: string) => launchLibraryGame(id))
+
+  addHandler('libraryShowInFinder', async (_e, id: string) => {
+    const game = getLibraryGame(id)
+    if (!game || !existsSync(game.exe)) return { success: false, message: 'Game not found' }
+    shell.showItemInFolder(game.exe)
+    return { success: true, message: '' }
   })
 
   addHandler('setWineLayer', async (_e, settings) => {

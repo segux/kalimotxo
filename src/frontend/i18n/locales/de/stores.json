@@ -9,10 +9,66 @@
   },
   "library": {
     "title": "Bibliothek",
-    "subtitle": "Installierte Spiele aller Plattformen erscheinen hier.",
-    "empty": "Keine aktiven Plattformen.",
+    "subtitle": "Deine Windows-Spiele: die von Battle.net und die, die du hinzufügst.",
     "openManager": "Manager öffnen",
-    "footer": "Künftige Versionen indexieren Wine-installierte Titel pro Store."
+    "addGame": "Spiel hinzufügen",
+    "noGames": "Noch keine Spiele. Installiere eines über sein Installationsprogramm oder füge ein vorhandenes hinzu.",
+    "platforms": "Plattformen",
+    "play": "Spielen",
+    "running": "Läuft",
+    "lastPlayed": "Gespielt am {{date}}",
+    "neverPlayed": "Noch nie gespielt",
+    "settings": "Spieleinstellungen",
+    "settingsTitle": "Einstellungen für {{name}}",
+    "name": "Name",
+    "graphics": "Grafikschicht",
+    "graphicsHint": "Wenn das Spiel nicht startet oder falsch aussieht, probiere eine andere Schicht.",
+    "args": "Startargumente",
+    "bottle": "Bottle: {{bottle}}",
+    "showInFinder": "Im Finder zeigen",
+    "remove": "Entfernen",
+    "removeConfirm": "Aus der Bibliothek entfernen",
+    "removeHint": "Die Spieldateien werden nicht gelöscht; das Spiel verschwindet nur aus der Bibliothek.",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "backend": {
+      "auto": "Automatisch (DirectX erkennen)",
+      "dxmt": "DXMT — DirectX 10/11",
+      "d3dmetal": "D3DMetal — DirectX 12",
+      "wined3d": "Wine — DirectX 9 und älter"
+    },
+    "add": {
+      "title": "Spiel hinzufügen",
+      "fromInstaller": "Über ein Installationsprogramm installieren",
+      "fromInstallerHint": "Wähle die Setup-.exe oder -.msi (GOG, Website des Spiels usw.). Sie läuft in Wine, danach wählst du die ausführbare Datei des Spiels.",
+      "existing": "Installiertes Spiel hinzufügen",
+      "existingHint": "Wähle die .exe eines Spiels, das du schon auf der Festplatte hast.",
+      "bottleNote": "Spiele werden in einer eigenen Bottle („Games“) installiert, getrennt von Battle.net. Beim ersten Mal werden Visual C++ und DirectX eingerichtet, was einige Minuten dauern kann.",
+      "chooseExe": "Wähle die ausführbare Datei des Spiels:",
+      "noExeSelected": "Keine ausführbare Datei ausgewählt",
+      "browse": "Durchsuchen…",
+      "confirm": "Zur Bibliothek hinzufügen",
+      "noExecutables": "Das Installationsprogramm ist fertig, hat aber keine ausführbaren Dateien hinzugefügt. Suche die .exe des Spiels manuell."
+    },
+    "install": {
+      "phase": {
+        "idle": "Wird vorbereitet…",
+        "bottle": "Spiele-Bottle wird vorbereitet…",
+        "deps": "Visual C++ und DirectX werden installiert (nur beim ersten Mal)…",
+        "installer": "Installation läuft: schließe sie in ihrem Fenster ab",
+        "scanning": "Installiertes Spiel wird gesucht…",
+        "done": "Installation abgeschlossen",
+        "error": "Installation fehlgeschlagen"
+      },
+      "hint": "Dieses Fenster wartet, bis das Installationsprogramm geschlossen wird.",
+      "cancel": "Installation abbrechen",
+      "cancelled": "Installation abgebrochen."
+    },
+    "backendShort": {
+      "dxmt": "DX11",
+      "d3dmetal": "DX12",
+      "wined3d": "DX9"
+    }
   },
   "downloads": {
     "title": "Downloads",

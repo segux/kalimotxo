@@ -9,10 +9,66 @@
   },
   "library": {
     "title": "Bibliothèque",
-    "subtitle": "Vos jeux installés de toutes les plateformes apparaîtront ici.",
-    "empty": "Aucune plateforme active.",
+    "subtitle": "Vos jeux Windows : ceux de Battle.net et ceux que vous ajoutez.",
     "openManager": "Ouvrir le gestionnaire",
-    "footer": "Les prochaines versions indexeront les titres Wine installés par boutique."
+    "addGame": "Ajouter un jeu",
+    "noGames": "Aucun jeu pour l’instant. Installez-en un depuis son installateur ou ajoutez-en un que vous avez déjà.",
+    "platforms": "Plateformes",
+    "play": "Jouer",
+    "running": "En cours",
+    "lastPlayed": "Joué le {{date}}",
+    "neverPlayed": "Jamais joué",
+    "settings": "Réglages du jeu",
+    "settingsTitle": "Réglages de {{name}}",
+    "name": "Nom",
+    "graphics": "Couche graphique",
+    "graphicsHint": "Si le jeu ne démarre pas ou s’affiche mal, essayez une autre couche.",
+    "args": "Arguments de lancement",
+    "bottle": "Bouteille : {{bottle}}",
+    "showInFinder": "Afficher dans le Finder",
+    "remove": "Retirer",
+    "removeConfirm": "Retirer de la bibliothèque",
+    "removeHint": "Les fichiers du jeu ne sont pas supprimés ; il disparaît seulement de la bibliothèque.",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "backend": {
+      "auto": "Automatique (détecter DirectX)",
+      "dxmt": "DXMT — DirectX 10/11",
+      "d3dmetal": "D3DMetal — DirectX 12",
+      "wined3d": "Wine — DirectX 9 et antérieurs"
+    },
+    "add": {
+      "title": "Ajouter un jeu",
+      "fromInstaller": "Installer depuis un installateur",
+      "fromInstallerHint": "Choisissez le .exe ou .msi d’installation (GOG, site du jeu, etc.). Il s’exécute dans Wine, puis vous choisissez l’exécutable du jeu.",
+      "existing": "Ajouter un jeu déjà installé",
+      "existingHint": "Choisissez le .exe d’un jeu déjà présent sur le disque.",
+      "bottleNote": "Les jeux sont installés dans leur propre bouteille (« Games »), séparée de Battle.net. La première fois, Visual C++ et DirectX sont préparés, ce qui peut prendre quelques minutes.",
+      "chooseExe": "Choisissez l’exécutable du jeu :",
+      "noExeSelected": "Aucun exécutable sélectionné",
+      "browse": "Parcourir…",
+      "confirm": "Ajouter à la bibliothèque",
+      "noExecutables": "L’installateur s’est terminé sans ajouter d’exécutable. Cherchez le .exe du jeu manuellement."
+    },
+    "install": {
+      "phase": {
+        "idle": "Préparation…",
+        "bottle": "Préparation de la bouteille de jeux…",
+        "deps": "Installation de Visual C++ et DirectX (première fois uniquement)…",
+        "installer": "Installateur en cours : terminez-le dans sa fenêtre",
+        "scanning": "Recherche du jeu installé…",
+        "done": "Installation terminée",
+        "error": "L’installation a échoué"
+      },
+      "hint": "Cette fenêtre attend jusqu’à la fermeture de l’installateur.",
+      "cancel": "Annuler l’installation",
+      "cancelled": "Installation annulée."
+    },
+    "backendShort": {
+      "dxmt": "DX11",
+      "d3dmetal": "DX12",
+      "wined3d": "DX9"
+    }
   },
   "downloads": {
     "title": "Téléchargements",

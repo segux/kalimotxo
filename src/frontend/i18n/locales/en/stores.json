@@ -9,10 +9,66 @@
   },
   "library": {
     "title": "Library",
-    "subtitle": "Your installed games from all platforms will appear here.",
-    "empty": "No active platforms.",
+    "subtitle": "Your Windows games: the ones from Battle.net and the ones you add.",
     "openManager": "Open manager",
-    "footer": "In future versions, Kalimotxo will index Wine-installed titles per store."
+    "addGame": "Add game",
+    "noGames": "No games yet. Install one from its installer or add one you already have.",
+    "platforms": "Platforms",
+    "play": "Play",
+    "running": "Running",
+    "lastPlayed": "Played on {{date}}",
+    "neverPlayed": "Never played",
+    "settings": "Game settings",
+    "settingsTitle": "{{name}} settings",
+    "name": "Name",
+    "graphics": "Graphics layer",
+    "graphicsHint": "If the game does not start or looks wrong, try another layer.",
+    "args": "Launch arguments",
+    "bottle": "Bottle: {{bottle}}",
+    "showInFinder": "Show in Finder",
+    "remove": "Remove",
+    "removeConfirm": "Remove from library",
+    "removeHint": "Game files are not deleted; it only disappears from the library.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "backend": {
+      "auto": "Automatic (detect DirectX)",
+      "dxmt": "DXMT — DirectX 10/11",
+      "d3dmetal": "D3DMetal — DirectX 12",
+      "wined3d": "Wine — DirectX 9 and older"
+    },
+    "add": {
+      "title": "Add game",
+      "fromInstaller": "Install from an installer",
+      "fromInstallerHint": "Pick the setup .exe or .msi (GOG, the game's website, etc.). It runs in Wine, then you choose the game's executable.",
+      "existing": "Add an installed game",
+      "existingHint": "Pick the .exe of a game you already have on disk.",
+      "bottleNote": "Games are installed in their own bottle (“Games”), separate from Battle.net. The first time, Visual C++ and DirectX are set up, which can take a few minutes.",
+      "chooseExe": "Choose the game executable:",
+      "noExeSelected": "No executable selected",
+      "browse": "Browse…",
+      "confirm": "Add to library",
+      "noExecutables": "The installer finished but added no executables. Browse for the game's .exe."
+    },
+    "install": {
+      "phase": {
+        "idle": "Preparing…",
+        "bottle": "Preparing the games bottle…",
+        "deps": "Installing Visual C++ and DirectX (first time only)…",
+        "installer": "Installer running: complete it in its window",
+        "scanning": "Looking for the installed game…",
+        "done": "Installation finished",
+        "error": "Installation failed"
+      },
+      "hint": "This window keeps waiting until the installer closes.",
+      "cancel": "Cancel installation",
+      "cancelled": "Installation cancelled."
+    },
+    "backendShort": {
+      "dxmt": "DX11",
+      "d3dmetal": "DX12",
+      "wined3d": "DX9"
+    }
   },
   "downloads": {
     "title": "Downloads",

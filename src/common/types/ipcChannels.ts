@@ -37,7 +37,16 @@ export const IPC_INVOKE_CHANNELS = [
   'getWineInstallStatus',
   'listBottles',
   'getDetectedWine',
-  'setWineLayer'
+  'setWineLayer',
+  'libraryList',
+  'libraryPickFile',
+  'libraryInstall',
+  'libraryCancelInstall',
+  'libraryAddGame',
+  'libraryUpdateGame',
+  'libraryRemoveGame',
+  'libraryLaunchGame',
+  'libraryShowInFinder'
 ] as const satisfies ReadonlyArray<keyof AsyncIPCFunctions>
 
 type MissingChannel = Exclude<keyof AsyncIPCFunctions, (typeof IPC_INVOKE_CHANNELS)[number]>

@@ -19,7 +19,8 @@
     "play": "Jugar",
     "install": "Instalar",
     "repair": "Reparar",
-    "refresh": "Actualizar"
+    "refresh": "Actualizar",
+    "close": "Cerrar"
   },
   "badge": {
     "ok": "OK",

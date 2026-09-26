@@ -1,4 +1,12 @@
 import type { BattleNetStatus, InstallProgress, OpResult } from './battlenet'
+import type {
+  AddLibraryGameInput,
+  LibraryEntry,
+  LibraryGame,
+  LibraryInstallProgress,
+  LibraryInstallResult,
+  UpdateLibraryGameInput
+} from './library'
 
 export interface SystemChecks {
   rosetta: { installed: boolean; install_hint?: string }
@@ -90,6 +98,15 @@ export interface AsyncIPCFunctions {
     wineLayer?: 'runtime' | 'crossover' | 'auto'
     crossoverBottle?: string
   }) => Promise<{ success: boolean }>
+  libraryList: () => Promise<LibraryEntry[]>
+  libraryPickFile: (kind: 'installer' | 'exe') => Promise<string | null>
+  libraryInstall: (installerPath: string) => Promise<LibraryInstallResult>
+  libraryCancelInstall: () => Promise<OpResult>
+  libraryAddGame: (input: AddLibraryGameInput) => Promise<OpResult & { game?: LibraryGame }>
+  libraryUpdateGame: (id: string, patch: UpdateLibraryGameInput) => Promise<OpResult>
+  libraryRemoveGame: (id: string) => Promise<OpResult>
+  libraryLaunchGame: (id: string) => Promise<OpResult>
+  libraryShowInFinder: (id: string) => Promise<OpResult>
 }
 
 export interface FrontendMessages {
@@ -106,4 +123,6 @@ export interface FrontendMessages {
   }) => void
   wineInstallFinished: (result: OpResult) => void
   gameLaunchError: (payload: { gameId: string; gameName: string; message: string }) => void
+  libraryInstallProgress: (progress: LibraryInstallProgress) => void
+  libraryChanged: () => void
 }

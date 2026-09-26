@@ -9,10 +9,66 @@
   },
   "library": {
     "title": "Biblioteca",
-    "subtitle": "Os jogos instalados de todas as plataformas aparecerão aqui.",
-    "empty": "Não há plataformas ativas.",
+    "subtitle": "Os seus jogos Windows: os do Battle.net e os que adicionar.",
     "openManager": "Abrir gestor",
-    "footer": "Em versões futuras, o Kalimotxo indexará títulos Wine instalados por loja."
+    "addGame": "Adicionar jogo",
+    "noGames": "Ainda não há jogos. Instale um a partir do instalador ou adicione um que já tenha.",
+    "platforms": "Plataformas",
+    "play": "Jogar",
+    "running": "Em execução",
+    "lastPlayed": "Jogado em {{date}}",
+    "neverPlayed": "Nunca jogado",
+    "settings": "Definições do jogo",
+    "settingsTitle": "Definições de {{name}}",
+    "name": "Nome",
+    "graphics": "Camada gráfica",
+    "graphicsHint": "Se o jogo não arrancar ou tiver mau aspeto, experimente outra camada.",
+    "args": "Argumentos de arranque",
+    "bottle": "Bottle: {{bottle}}",
+    "showInFinder": "Mostrar no Finder",
+    "remove": "Remover",
+    "removeConfirm": "Remover da biblioteca",
+    "removeHint": "Os ficheiros do jogo não são apagados; apenas desaparece da biblioteca.",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "backend": {
+      "auto": "Automática (detetar DirectX)",
+      "dxmt": "DXMT — DirectX 10/11",
+      "d3dmetal": "D3DMetal — DirectX 12",
+      "wined3d": "Wine — DirectX 9 e anteriores"
+    },
+    "add": {
+      "title": "Adicionar jogo",
+      "fromInstaller": "Instalar a partir de um instalador",
+      "fromInstallerHint": "Escolha o .exe ou .msi de instalação (GOG, site do jogo, etc.). É executado no Wine e depois escolhe o executável do jogo.",
+      "existing": "Adicionar um jogo já instalado",
+      "existingHint": "Escolha o .exe de um jogo que já tenha no disco.",
+      "bottleNote": "Os jogos são instalados num bottle próprio («Games»), separado do Battle.net. Na primeira vez são preparados o Visual C++ e o DirectX, o que pode demorar alguns minutos.",
+      "chooseExe": "Escolha o executável do jogo:",
+      "noExeSelected": "Nenhum executável selecionado",
+      "browse": "Procurar…",
+      "confirm": "Adicionar à biblioteca",
+      "noExecutables": "O instalador terminou sem adicionar executáveis. Procure o .exe do jogo manualmente."
+    },
+    "install": {
+      "phase": {
+        "idle": "A preparar…",
+        "bottle": "A preparar o bottle de jogos…",
+        "deps": "A instalar Visual C++ e DirectX (só na primeira vez)…",
+        "installer": "Instalador em curso: conclua-o na sua janela",
+        "scanning": "A procurar o jogo instalado…",
+        "done": "Instalação concluída",
+        "error": "A instalação falhou"
+      },
+      "hint": "Esta janela continua à espera até o instalador fechar.",
+      "cancel": "Cancelar instalação",
+      "cancelled": "Instalação cancelada."
+    },
+    "backendShort": {
+      "dxmt": "DX11",
+      "d3dmetal": "DX12",
+      "wined3d": "DX9"
+    }
   },
   "downloads": {
     "title": "Transferências",
