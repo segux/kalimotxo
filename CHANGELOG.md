@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/segux/kalimotxo/compare/v0.3.1...v0.3.2) (2026-09-27)
+
+
+### Bug Fixes
+
+* **wine:** name it Kalimotxo Wine and show the installed version ([4dec61f](https://github.com/segux/kalimotxo/commit/4dec61f86c68d64aa8c2659bdc08b073c5338ef0))
+
 ## [0.3.1](https://github.com/segux/kalimotxo/compare/v0.3.0...v0.3.1) (2026-09-27)
 
 
