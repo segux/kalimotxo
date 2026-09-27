@@ -1,7 +1,18 @@
+/** Kalimotxo's own Wine build (see docs/wine-build.md). */
+export const KALIMOTXO_WINE_REPO_ID = 'kalimotxo-wine'
+export const KALIMOTXO_WINE_TYPE = 'Kalimotxo-Wine'
+/** Release tag prefix of those builds in this repo, e.g. `wine-cx-26.1.0`. */
+export const KALIMOTXO_WINE_TAG_PREFIX = 'wine-cx-'
+/**
+ * Type of CrossOver-based runtimes installed before Kalimotxo Wine existed
+ * (hand-copied `Wine-BattleNet-11.0`, early `Wine-BattleNet-latest`).
+ */
+export const LEGACY_BATTLENET_WINE_TYPE = 'Wine-BattleNet'
+
 export type WineRepoId =
   | 'wine-staging-macos'
   | 'game-porting-toolkit'
-  | 'wine-battlenet'
+  | typeof KALIMOTXO_WINE_REPO_ID
 
 export interface WineRepository {
   id: WineRepoId
@@ -17,9 +28,9 @@ export const MACOS_REPOSITORIES: WineRepository[] = [
     // "Battle.net ready" runtime: Wine built by Kalimotxo's CI from CodeWeavers'
     // CrossOver LGPL sources (WRITECOPY, msync, CEF fixes), published as
     // `wine-cx-<version>` releases of this repo. See docs/wine-build.md.
-    id: 'wine-battlenet',
+    id: KALIMOTXO_WINE_REPO_ID,
     name: 'Kalimotxo Wine',
-    typeLabel: 'Wine-BattleNet',
+    typeLabel: KALIMOTXO_WINE_TYPE,
     apiUrl: 'https://api.github.com/repos/segux/kalimotxo/releases',
     installCategory: 'wine'
   },

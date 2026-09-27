@@ -86,7 +86,7 @@ import {
 } from './games'
 import { isD3dmetalInstalled } from '../../setup/runtimePaths'
 import { friendlyProgressMessage } from './progressMessages'
-import { ensureBattleNetReadyWine } from '../../wine/manager/battlenetWine'
+import { ensureBattleNetReadyWine } from '../../wine/manager/kalimotxoWine'
 
 let installRunning = false
 let repairRunning = false

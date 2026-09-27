@@ -7,7 +7,7 @@ const asset = (name: string) => ({
   size: 100
 })
 
-describe('fetchRepositoryReleases (Battle.net Wine)', () => {
+describe('fetchRepositoryReleases (Kalimotxo Wine)', () => {
   const realFetch = global.fetch
   afterEach(() => {
     global.fetch = realFetch
@@ -31,13 +31,11 @@ describe('fetchRepositoryReleases (Battle.net Wine)', () => {
       ]
     }) as unknown as typeof fetch
 
-    const releases = await fetchRepositoryReleases(REPO_BY_ID['wine-battlenet'])
-    expect(releases.map((r) => r.version)).toEqual([
-      'Wine-BattleNet-latest',
-      'Wine-BattleNet-CX-26.1.0'
-    ])
-    expect(releases[1]).toMatchObject({
-      type: 'Wine-BattleNet',
+    const releases = await fetchRepositoryReleases(REPO_BY_ID['kalimotxo-wine'])
+    // Listed by its real version, no `-latest` alias.
+    expect(releases.map((r) => r.version)).toEqual(['Kalimotxo-Wine-26.1.0'])
+    expect(releases[0]).toMatchObject({
+      type: 'Kalimotxo-Wine',
       download: 'https://example.test/wine-cx-26.1.0.tar.xz',
       checksum: 'https://example.test/wine-cx-26.1.0.tar.xz.sha512sum'
     })

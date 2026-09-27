@@ -37,6 +37,8 @@
     "bottlesTitle": "Kalimotxo bottles",
     "kalimotxoBottlesHint": "Wine prefixes Kalimotxo creates (e.g. “Battle.net”, or “Games” for your other games).",
     "noKalimotxoBottles": "None yet — created when you install Battle.net or add a game.",
-    "installRecommended": "Install Kalimotxo Wine (recommended)"
+    "installRecommended": "Install Kalimotxo Wine (recommended)",
+    "kalimotxoWineName": "Kalimotxo Wine {{version}}",
+    "kalimotxoWineType": "built by Kalimotxo"
   }
 }

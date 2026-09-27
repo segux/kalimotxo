@@ -11,8 +11,15 @@ type WineReleaseRow = {
   install_dir?: string
 }
 
+const KALIMOTXO_WINE_TYPE = 'Kalimotxo-Wine'
+
 export default function WineManagerScreen() {
   const { t } = useTranslation('settings')
+  /** `Kalimotxo-Wine-26.1.0` -> "Wine Kalimotxo 26.1.0"; other ids as they are. */
+  const wineLabel = (version: string): string =>
+    version.startsWith(`${KALIMOTXO_WINE_TYPE}-`)
+      ? t('wine.kalimotxoWineName', { version: version.slice(KALIMOTXO_WINE_TYPE.length + 1) })
+      : version
   const [installed, setInstalled] = useState<WineReleaseRow[]>([])
   const [catalog, setCatalog] = useState<WineReleaseRow[]>([])
   const [active, setActive] = useState<string | null>(null)
@@ -64,8 +71,14 @@ export default function WineManagerScreen() {
   const onInstallHeroicDefault = async () => {
     setBusy(true)
     setInstallStatus(t('wine.installingDefault'))
-    await window.api.refreshWineCatalog()
-    const r = await window.api.installWineVersion('Wine-BattleNet-latest')
+    const { versions } = await window.api.refreshWineCatalog()
+    const newest = (versions as WineReleaseRow[])
+      .filter((v) => v.type === KALIMOTXO_WINE_TYPE)
+      .map((v) => v.version)
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]
+    const r = newest
+      ? await window.api.installWineVersion(newest)
+      : { success: false, message: '' }
     if (!r.success) {
       const r2 = await window.api.installWineVersion('Wine-Staging-macOS-latest')
       setInstallStatus(r2.message)
@@ -76,7 +89,7 @@ export default function WineManagerScreen() {
   }
 
   const catalogSlice = catalog.filter(
-    (r) => r.version.endsWith('-latest') || r.is_installed
+    (r) => r.version.endsWith('-latest') || r.is_installed || r.type === KALIMOTXO_WINE_TYPE
   )
 
   return (
@@ -85,7 +98,7 @@ export default function WineManagerScreen() {
         <CardTitle>{t('wine.kalimotxoWineTitle')}</CardTitle>
         <p className="mt-1 text-sm text-white/55">{t('wine.kalimotxoWineHint')}</p>
         <p className="mt-2 text-sm text-white/60">
-          {t('wine.active', { name: active ?? t('wine.activeNone') })}
+          {t('wine.active', { name: active ? wineLabel(active) : t('wine.activeNone') })}
         </p>
       </Card>
 
@@ -112,9 +125,9 @@ export default function WineManagerScreen() {
               className="flex flex-wrap items-center justify-between gap-2 rounded bg-white/5 px-2 py-2"
             >
               <div>
-                <div className="font-medium text-white/90">{row.version}</div>
+                <div className="font-medium text-white/90">{wineLabel(row.version)}</div>
                 <div className="text-xs text-white/45">
-                  {row.type}
+                  {row.type === KALIMOTXO_WINE_TYPE ? t('wine.kalimotxoWineType') : row.type}
                   {row.is_installed ? ` · ${t('wine.installed')}` : ''}
                   {active === row.version ? ` · ${t('wine.inUse')}` : ''}
                 </div>

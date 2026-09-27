@@ -22,7 +22,7 @@ import {
   migrateLegacyInstall,
   resolveActiveWineRoot
 } from './installed'
-import { fetchRepositoryReleases, mergeReleaseLists } from './releases'
+import { fetchRepositoryReleases, mergeReleaseLists, newestKalimotxoWine } from './releases'
 import { MACOS_REPOSITORIES } from './repositories'
 import type { WineInstallStatus, WineRelease } from './types'
 
@@ -110,8 +110,8 @@ export function isMacSonomaOrHigher(): boolean {
 export function pickHeroicDefaultWineVersion(catalog?: WineRelease[]): string | null {
   if (process.platform !== 'darwin') return null
   const list = catalog ?? loadCatalog()
-  const battleNet = 'Wine-BattleNet-latest'
-  if (list.some((r) => r.version === battleNet && r.download)) return battleNet
+  const kalimotxoWine = newestKalimotxoWine(list)
+  if (kalimotxoWine) return kalimotxoWine.version
   const staging = 'Wine-Staging-macOS-latest'
   if (list.some((r) => r.version === staging && r.download)) return staging
   const gptk = 'Game-Porting-Toolkit-latest'

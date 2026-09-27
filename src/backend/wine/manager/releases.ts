@@ -1,14 +1,28 @@
 import { existsSync } from 'fs'
 
-import type { WineRepository } from './repositories'
+import {
+  KALIMOTXO_WINE_REPO_ID,
+  KALIMOTXO_WINE_TAG_PREFIX,
+  KALIMOTXO_WINE_TYPE,
+  type WineRepository
+} from './repositories'
 import type { WineRelease } from './types'
 
-/** Tag prefix of the Wine builds published by Kalimotxo's own CI. */
-export const BATTLENET_WINE_TAG_PREFIX = 'wine-cx-'
+/** `wine-cx-26.1.0` -> `26.1.0`. */
+export function kalimotxoWineVersionFromTag(tag: string): string {
+  return tag.slice(KALIMOTXO_WINE_TAG_PREFIX.length)
+}
+
+/** Newest downloadable Kalimotxo Wine in a catalog, by version number. */
+export function newestKalimotxoWine(catalog: WineRelease[]): WineRelease | null {
+  const builds = catalog.filter((r) => r.type === KALIMOTXO_WINE_TYPE && r.download)
+  builds.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }))
+  return builds[0] ?? null
+}
 
 function versionName(wineType: string, tag: string): string {
-  if (wineType === 'Wine-BattleNet') {
-    return `Wine-BattleNet-CX-${tag.slice(BATTLENET_WINE_TAG_PREFIX.length)}`
+  if (wineType === KALIMOTXO_WINE_TYPE) {
+    return `${KALIMOTXO_WINE_TYPE}-${kalimotxoWineVersionFromTag(tag)}`
   }
   if (wineType.includes('Wine')) return `Wine-${tag}`
   return tag
@@ -22,7 +36,7 @@ function pickAssets(
   let download = ''
   let downsize = 0
   let checksum = ''
-  if (wineType === 'Wine-BattleNet') {
+  if (wineType === KALIMOTXO_WINE_TYPE) {
     // Our releases also attach the CrossOver source tarball: pick the build by name.
     const build = assets.find((a) => a.name === `${tag}.tar.xz`)
     const sum = assets.find((a) => a.name === `${tag}.tar.xz.sha512sum`)
@@ -74,7 +88,7 @@ export async function fetchRepositoryReleases(
       const tag = release.tag_name ?? ''
       if (!tag) continue
       // The app's own releases live in the same repo: keep only Wine builds.
-      if (repo.id === 'wine-battlenet' && !tag.startsWith(BATTLENET_WINE_TAG_PREFIX)) continue
+      if (repo.id === KALIMOTXO_WINE_REPO_ID && !tag.startsWith(KALIMOTXO_WINE_TAG_PREFIX)) continue
       const { download, downsize, checksum } = pickAssets(
         repo.typeLabel,
         release.assets ?? [],
@@ -97,6 +111,8 @@ export async function fetchRepositoryReleases(
       })
     }
     if (!releases.length) return releases
+    // Kalimotxo Wine is listed by its real version, without a `-latest` alias.
+    if (repo.id === KALIMOTXO_WINE_REPO_ID) return releases
     const latest =
       releases.find((r) => /\d+-\d+$/.test(r.version)) ?? releases[0]
     releases.unshift({

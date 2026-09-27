@@ -29,7 +29,7 @@
     "kalimotxoWineHint": "Kalimotxo compila e scarica il proprio Wine, basato sul codice open source di CrossOver. Tutto si trova in ~/.kalimotxo: non serve installare altre app.",
     "refreshCatalog": "Aggiorna catalogo",
     "refreshing": "Consultazione di GitHub…",
-    "installRecommended": "Installa il Wine di Kalimotxo (consigliato)",
+    "installRecommended": "Installa Wine Kalimotxo (consigliato)",
     "installingDefault": "Installazione del Wine predefinito…",
     "install": "Installa",
     "activate": "Attiva",
@@ -37,6 +37,8 @@
     "installed": "installato",
     "inUse": "in uso",
     "kalimotxoBottlesHint": "Prefissi Wine creati da Kalimotxo (es. «Battle.net», o «Games» per gli altri tuoi giochi).",
-    "noKalimotxoBottles": "Ancora nessuna: vengono create installando Battle.net o aggiungendo un gioco."
+    "noKalimotxoBottles": "Ancora nessuna: vengono create installando Battle.net o aggiungendo un gioco.",
+    "kalimotxoWineName": "Wine Kalimotxo {{version}}",
+    "kalimotxoWineType": "compilato da Kalimotxo"
   }
 }

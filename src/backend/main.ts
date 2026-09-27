@@ -81,6 +81,8 @@ app.whenReady().then(async () => {
   registerAllHandlers()
   const { migrateWineSettingsToKalimotxo } = await import('./wine/compatibilityLayers')
   migrateWineSettingsToKalimotxo()
+  const { migrateKalimotxoWineCatalog } = await import('./wine/manager/kalimotxoWine')
+  migrateKalimotxoWineCatalog()
   await createWindow()
 })
 
