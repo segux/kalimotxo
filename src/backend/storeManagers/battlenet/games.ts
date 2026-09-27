@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { join } from 'path'
 
 import { getBottleConfig, saveBottleConfig } from '../../bottle'
-import { LOGS_DIR } from '../../config/paths'
+import { DATA_DIR, LOGS_DIR } from '../../config/paths'
 import {
   BLIZZARD_GAME_IDS,
   getGameProfile,
@@ -239,6 +239,14 @@ export async function launchBlizzardGame(
   const gameEnv = buildGameLaunchEnv(BATTLENET_BOTTLE, profile)
   // Mark this process as Kalimotxo-managed so the gameWatcher ignores it
   gameEnv.KALIMOTXO_MANAGED = '1'
+
+  // `touch ~/.kalimotxo/debug-graphics` logs Wine's module/DLL loading and the
+  // graphics layer (DXMT) into the launch log, to see why a device fails.
+  if (existsSync(join(DATA_DIR, 'debug-graphics'))) {
+    gameEnv.WINEDEBUG = 'fixme-all,err+all,warn+module,+loaddll'
+    gameEnv.DXMT_LOG_LEVEL = 'debug'
+    log('Graphics debug logging enabled (~/.kalimotxo/debug-graphics)')
+  }
 
   // DXMT only replaces Wine's d3d11/dxgi when it lives in Wine's own lib dir:
   // run the game on the DXMT flavour of the active Wine (see dxmtWine.ts).
