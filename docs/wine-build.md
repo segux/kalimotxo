@@ -16,6 +16,9 @@ cualquier usuario lo obtenga sin instalar nada más y sin depender de builds de 
   `@loader_path/` sin variables `DYLD_*` (macOS las borra en los procesos hijos de Wine). Referencias
   reescritas a `@loader_path` (`scripts/wine/bundle-dylibs.py`).
 - `COPYING.LIB` y `SOURCE.md` con la URL y el sha256 exactos del código fuente (requisito LGPL).
+- La release adjunta además el `crossover-sources-<versión>.tar.gz` usado, para no depender de que
+  CodeWeavers lo mantenga publicado. El título la presenta como «Kalimotxo Wine … (built from
+  CrossOver sources)»: es una compilación nuestra, no un producto de CodeWeavers.
 
 **No contiene nada de Apple.** D3DMetal (GPTK) solo lo necesitan los juegos DX12 (p. ej. Diablo IV)
 y Kalimotxo lo obtiene aparte. El cliente de Battle.net y D2R funcionan con este Wine + DXMT +

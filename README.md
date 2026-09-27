@@ -38,7 +38,9 @@ the Battle.net client itself.
 | **Disk space** | ~2 GB free (for Wine + graphics runtimes) |
 | **Internet** | Required for the initial setup download |
 
-That's it. No Xcode, no Homebrew, no command line — the setup wizard handles everything else.
+That's it. No Xcode, no command line — the setup wizard handles everything else. If an
+optional component needs Homebrew (GStreamer for game audio, Apple's Game Porting Toolkit),
+the wizard installs it for you; macOS may ask for your password once.
 
 ---
 
@@ -48,6 +50,11 @@ That's it. No Xcode, no Homebrew, no command line — the setup wizard handles e
 2. Download **Kalimotxo-x.x.x-arm64.dmg**.
 3. Open the DMG file and drag **Kalimotxo** into your **Applications** folder.
 4. Launch Kalimotxo from Applications.
+
+The DMG only contains the app. The Wine engine is a separate download that Kalimotxo
+fetches by itself during setup (see below) — you never need to download it manually.
+On the Releases page you will also see `wine-cx-…` releases: those are that engine,
+published for Kalimotxo to download.
 
 > **"Kalimotxo" can't be opened?** Right-click the app icon → **Open** → click Open
 > in the dialog. You only need to do this once. This happens because the app is
@@ -61,12 +68,19 @@ The first time you open Kalimotxo it shows a setup wizard. Click
 **"Prepare everything automatically"** and wait for it to finish.
 
 The wizard downloads:
-- Wine 11 (compatibility layer for Windows programs)
-- DXMT (translates DirectX 11/12 calls to Metal — Apple's GPU API)
-- Game Porting Toolkit components
+- **Kalimotxo Wine** — the compatibility layer for Windows programs. It is Wine built by
+  this project's CI from the open-source code CodeWeavers publishes for CrossOver (LGPL),
+  which is what Battle.net needs on Apple Silicon. About 80 MB, verified with its checksum.
+  See [docs/wine-build.md](docs/wine-build.md).
+- DXMT (translates DirectX 10/11 calls to Metal — Apple's GPU API)
+- D3DMetal from Apple's Game Porting Toolkit, only needed for DirectX 12 games such as
+  Diablo IV. Kalimotxo takes it from CrossOver or the Game Porting Toolkit if you have
+  them, or installs Apple's toolkit through Homebrew.
 - Rosetta 2 (if not already installed)
 
-This is a one-time download of roughly 700 MB. Once done, you're ready to install games.
+This is a one-time download of a few hundred MB, stored in `~/.kalimotxo`. Once done,
+you're ready to install games. Wine updates are published separately from the app, so a
+new Wine does not require a new Kalimotxo version (and vice versa).
 
 ---
 
@@ -90,6 +104,23 @@ This is a one-time download of roughly 700 MB. Once done, you're ready to instal
 | Warcraft III: Reforged | ✅ Working |
 
 Other Battle.net games may work — try them and [report results](https://github.com/segux/kalimotxo/issues).
+
+### Other Windows games
+
+Games that are not on Battle.net (for example from GOG or a game's own website) can be
+added too, and they show up in your **Library** next to the Battle.net ones:
+
+1. Go to **Library → Add game**.
+2. Choose **Install from an installer** and pick the game's `.exe` or `.msi` setup, then
+   complete the installer in its window. Or choose **Add an installed game** and pick
+   the game's `.exe`.
+3. After installing, pick the game's executable from the list (the likely one is
+   preselected) and click **Add to library**.
+
+These games live in their own Wine bottle ("Games"), separate from Battle.net. The first
+time, Kalimotxo prepares it with Visual C++ and DirectX runtimes (under a minute). The
+graphics layer is detected from the game (DirectX 12 → D3DMetal, 10/11 → DXMT, 9 and older
+→ Wine); if a game does not start or looks wrong, try another one in its settings.
 
 ---
 
@@ -115,9 +146,12 @@ Check the [issues page](https://github.com/segux/kalimotxo/issues) to see if it'
 a known problem. If not, open a new issue with your Mac model, macOS version, and
 the game name.
 
-**Can I use CrossOver or other Wine versions instead?**
-Kalimotxo manages its own Wine installation and does not use CrossOver or any
-third-party Wine. This keeps the setup reproducible and avoids conflicts.
+**Is the Wine Kalimotxo uses its own? Do I need CrossOver?**
+You do not need CrossOver. Kalimotxo compiles its own Wine in this repository's CI from
+the open-source code CodeWeavers publishes for CrossOver (LGPL), without modifications,
+and publishes it as `wine-cx-…` releases with its licence and a copy of the source code.
+Kalimotxo is not affiliated with CodeWeavers. Other Wine versions can be installed and
+switched in **Settings → Wine**, but Battle.net needs the CrossOver-based one.
 
 ---
 
@@ -180,6 +214,6 @@ Full list in [CREDITS.md](CREDITS.md).
 
 ## Disclaimer
 
-Independent project, not affiliated with or endorsed by Blizzard Entertainment or
-Apple Inc. Trademarks belong to their respective owners. Use at your own risk and
+Independent project, not affiliated with or endorsed by Blizzard Entertainment,
+Apple Inc. or CodeWeavers, Inc. Trademarks belong to their respective owners. Use at your own risk and
 respect the terms of service of the software you run.
