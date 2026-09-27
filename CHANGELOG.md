@@ -1,3 +1,10 @@
+## [0.3.3](https://github.com/segux/kalimotxo/compare/v0.3.2...v0.3.3) (2026-09-27)
+
+
+### Bug Fixes
+
+* **winetricks:** find cabextract when the app is opened from the Finder ([1c87144](https://github.com/segux/kalimotxo/commit/1c87144e0caacbadc37ecef3e9d02497dbbd0682))
+
 ## [0.3.2](https://github.com/segux/kalimotxo/compare/v0.3.1...v0.3.2) (2026-09-27)
 
 
