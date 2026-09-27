@@ -68,6 +68,33 @@ export function migrateKalimotxoWineCatalog(): void {
 }
 
 /**
+ * Moves an active Kalimotxo Wine to a newer published build (e.g. a revision
+ * that fixes Battle.net). Hand-installed runtimes are never replaced, and any
+ * failure (offline, download) keeps the current one.
+ */
+async function upgradeKalimotxoWine(
+  active: string,
+  log: (m: string) => void,
+  onProgress?: (pct: number, msg: string) => void
+): Promise<void> {
+  if (findRelease(active)?.type !== KALIMOTXO_WINE_TYPE) return
+  try {
+    const newest = newestKalimotxoWine(await refreshWineReleases([KALIMOTXO_WINE_REPO_ID]))
+    if (!newest || newest.version.localeCompare(active, undefined, { numeric: true }) <= 0) return
+    log(`Updating Kalimotxo Wine: ${active} -> ${newest.version}`)
+    const result = await installWineVersionSync(newest.version, { onProgress })
+    if (!result.success) {
+      log(`Kalimotxo Wine update failed, keeping ${active}: ${result.message}`)
+      return
+    }
+    setActiveWineVersion(newest.version)
+    log(`Active Wine: ${newest.version}`)
+  } catch (e) {
+    log(`Kalimotxo Wine update skipped: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
+/**
  * Battle.net only runs on a CrossOver-based Wine. Makes one active: keeps the
  * active one if it already is, else activates an installed one, else downloads
  * the newest Kalimotxo Wine published by this project's CI (docs/wine-build.md).
@@ -77,7 +104,11 @@ export async function ensureBattleNetReadyWine(
   log: (m: string) => void = logInfo,
   onProgress?: (pct: number, msg: string) => void
 ): Promise<boolean> {
-  if (isUsable(getActiveVersionId())) return true
+  const active = getActiveVersionId()
+  if (isUsable(active)) {
+    await upgradeKalimotxoWine(active!, log, onProgress)
+    return true
+  }
 
   const installed = loadCatalog().find((r) => isUsable(r.version))
   if (installed) {

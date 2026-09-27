@@ -14,10 +14,24 @@ jest.mock('../catalog', () => ({
   },
   findRelease: (v: string) => catalog.find((r) => r.version === v) ?? null
 }))
-jest.mock('../manager', () => ({}))
+const installed: string[] = []
+let published: WineRelease[] = []
+jest.mock('../manager', () => ({
+  refreshWineReleases: async () => published,
+  installWineVersionSync: async (v: string) => {
+    installed.push(v)
+    const r = catalog.find((x) => x.version === v)
+    if (r) r.is_installed = true
+    return { success: true, message: 'ok' }
+  },
+  setActiveWineVersion: (v: string) => {
+    active = v
+  }
+}))
+jest.mock('fs', () => ({ ...jest.requireActual('fs'), existsSync: () => true }))
 jest.mock('../../../logger', () => ({ logInfo: () => {} }))
 
-import { migrateKalimotxoWineCatalog } from '../kalimotxoWine'
+import { ensureBattleNetReadyWine, migrateKalimotxoWineCatalog } from '../kalimotxoWine'
 
 const DL = 'https://github.com/segux/kalimotxo/releases/download/wine-cx-26.1.0/wine-cx-26.1.0.tar.xz'
 const release = (over: Partial<WineRelease>): WineRelease => ({
@@ -70,5 +84,40 @@ describe('migrateKalimotxoWineCatalog', () => {
     migrateKalimotxoWineCatalog()
     expect(catalog.map((r) => r.version)).toEqual(['Wine-BattleNet-11.0'])
     expect(active).toBe('Wine-BattleNet-11.0')
+  })
+})
+
+describe('ensureBattleNetReadyWine upgrades', () => {
+  const kw = (version: string, over: Partial<WineRelease> = {}): WineRelease =>
+    release({ version, type: 'Kalimotxo-Wine', repository_id: 'kalimotxo-wine', download: 'https://x/y.tar.xz', ...over })
+
+  beforeEach(() => {
+    installed.length = 0
+  })
+
+  it('moves an active Kalimotxo Wine to a newer revision', async () => {
+    catalog = [kw('Kalimotxo-Wine-26.1.0', { is_installed: true, install_dir: '/w/a' }), kw('Kalimotxo-Wine-26.1.0-2')]
+    published = catalog
+    active = 'Kalimotxo-Wine-26.1.0'
+    expect(await ensureBattleNetReadyWine(() => {})).toBe(true)
+    expect(installed).toEqual(['Kalimotxo-Wine-26.1.0-2'])
+    expect(active).toBe('Kalimotxo-Wine-26.1.0-2')
+  })
+
+  it('keeps a hand-installed Battle.net Wine as it is', async () => {
+    catalog = [release({ version: 'Wine-BattleNet-11.0', is_installed: true, install_dir: '/w/b' }), kw('Kalimotxo-Wine-26.1.0-2')]
+    published = catalog
+    active = 'Wine-BattleNet-11.0'
+    expect(await ensureBattleNetReadyWine(() => {})).toBe(true)
+    expect(installed).toEqual([])
+    expect(active).toBe('Wine-BattleNet-11.0')
+  })
+
+  it('does nothing when already on the newest build', async () => {
+    catalog = [kw('Kalimotxo-Wine-26.1.0-2', { is_installed: true, install_dir: '/w/c' })]
+    published = catalog
+    active = 'Kalimotxo-Wine-26.1.0-2'
+    await ensureBattleNetReadyWine(() => {})
+    expect(installed).toEqual([])
   })
 })

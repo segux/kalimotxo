@@ -21,7 +21,10 @@ NETTLE_VERSION=3.10.2
 GNUTLS_VERSION=3.8.9
 FREETYPE_VERSION=2.13.3
 SDL2_VERSION=2.32.10
-MOLTENVK_VERSION="${MOLTENVK_VERSION:-v1.3.0}"
+# 1.2.11: Battle.net's CEF (ANGLE on Vulkan) aborts on 1.3.x, which rejects the
+# external memory type winevulkan requests (vkCreateBuffer: only MTLBUFFER/MTLHEAP
+# handle types). Khronos publishes the 1.2.11 binaries under this tag.
+MOLTENVK_VERSION="${MOLTENVK_VERSION:-v1.2.11-artifacts}"
 
 export MACOSX_DEPLOYMENT_TARGET=11.0
 # The /usr/bin driver shims pick the active Xcode and its macOS SDK. Plain

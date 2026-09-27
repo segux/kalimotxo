@@ -21,8 +21,12 @@ on:
         description: CrossOver source version (media.codeweavers.com/pub/crossover/source/)
         required: true
         default: 26.1.0
+      revision:
+        description: Build revision for the same CrossOver version (e.g. 2 -> wine-cx-26.1.0-2); empty for the first
+        required: false
+        default: ''
       publish:
-        description: Publish a GitHub release (otherwise only a workflow artifact)
+        description: Create a DRAFT release (test Battle.net with it, then publish it by hand)
         type: boolean
         default: false
 
@@ -47,7 +51,7 @@ jobs:
       CX_VERSION: ${{ inputs.crossover_version || '26.1.0' }}
       LLVM_MINGW_VERSION: '20260922'
       DEPS: ${{ github.workspace }}/deps
-      TAG: wine-cx-${{ inputs.crossover_version || '26.1.0' }}
+      TAG: wine-cx-${{ inputs.crossover_version || '26.1.0' }}${{ inputs.revision && format('-{0}', inputs.revision) || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -175,7 +179,7 @@ jobs:
           Build recipe: https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.github/workflows/build-wine.yml
           Bundled x86_64 libraries (lib/wine/x86_64-unix): gnutls, nettle, gmp, freetype and SDL2 built
           from their upstream sources by scripts/wine/build-deps.sh, and the official MoltenVK
-          release binary. Each keeps its own licence.
+          release binary ($(grep -o 'MOLTENVK_VERSION:-[^}]*' scripts/wine/build-deps.sh | cut -d- -f2-)). Each keeps its own licence.
           EOF
           mv wine-install "$TAG"
           tar -cJf "$TAG.tar.xz" "$TAG"
@@ -199,6 +203,7 @@ jobs:
           # Ship the exact corresponding source with the binaries (LGPL).
           cp crossover-sources.tar.gz "crossover-sources-${CX_VERSION}.tar.gz"
           gh release create "$TAG" "$TAG.tar.xz" "$TAG.tar.xz.sha512sum" "crossover-sources-${CX_VERSION}.tar.gz" \
-            --title "Kalimotxo Wine ${CX_VERSION} (built from CrossOver sources)" \
+            --draft \
+            --title "Kalimotxo Wine ${TAG#wine-cx-} (built from CrossOver sources)" \
             --notes "Wine engine downloaded automatically by Kalimotxo; you do not need to install it by hand. Built by this repository's CI from CodeWeavers' CrossOver ${CX_VERSION} LGPL sources, unmodified (x86_64, runs under Rosetta). Free software only, no Apple components. The corresponding source is attached. Not affiliated with CodeWeavers; CrossOver is their trademark." \
             --latest=false

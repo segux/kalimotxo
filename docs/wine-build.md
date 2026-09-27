@@ -44,6 +44,21 @@ Disparadores:
 - **`workflow_dispatch`** (con el workflow ya en `main`): elige versión y, con `publish`, crea la
   release `wine-cx-<versión>` (no se marca como *latest*, para no tapar las releases de la app).
 
+### Publicar una versión (obligatorio probar Battle.net)
+
+Las pruebas de CI (TLS, Vulkan, 32/64 bits) no bastan: `wine-cx-26.1.0` las pasaba y aun así el
+cliente de Battle.net se cerraba al arrancar, porque su navegador interno (ANGLE sobre Vulkan) falla
+con MoltenVK 1.3.x. Por eso el workflow crea la release como **borrador**, que la app no ve:
+
+1. `gh workflow run build-wine.yml --ref <rama> -f crossover_version=26.1.0 -f revision=<n> -f publish=true`
+2. Descargar el `.tar.xz` del borrador, instalarlo en `~/.kalimotxo/runtime/wine/`, activarlo en
+   Ajustes → Wine y **abrir Battle.net de verdad** (login visible, sin «La aplicación ha detectado
+   un error inesperado»), y lanzar un juego.
+3. Solo entonces `gh release edit wine-cx-<versión> --draft=false --latest=false`.
+
+Un arreglo del mismo CrossOver se publica como revisión (`wine-cx-26.1.0-2`); la app instala sola
+la versión más nueva al abrir Battle.net.
+
 La receta está adaptada de [mikaelhug/Silo](https://github.com/mikaelhug/Silo) (LGPL-2.1).
 
 ## Licencias
