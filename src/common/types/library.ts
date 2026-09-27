@@ -1,5 +1,8 @@
-/** Graphics layer for a library game (see backend/library/gameEnv.ts). */
-export type LibraryGraphicsBackend = 'dxmt' | 'd3dmetal' | 'wined3d'
+/**
+ * Graphics layer for a library game (see backend/library/gameEnv.ts).
+ * `wined3d` draws through Vulkan (MoltenVK), `wined3d-gl` through OpenGL.
+ */
+export type LibraryGraphicsBackend = 'dxmt' | 'd3dmetal' | 'wined3d' | 'wined3d-gl'
 
 /** A Windows game added by the user (not managed by a store launcher). */
 export interface LibraryGame {

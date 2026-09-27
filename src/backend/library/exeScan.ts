@@ -70,7 +70,8 @@ const SCAN_BYTES = 64 * 1024 * 1024
 
 /**
  * Guesses the graphics layer from the Direct3D DLL names the executable
- * references: D3D12 -> D3DMetal, D3D11/10 -> DXMT, D3D9 and older -> wined3d.
+ * references: D3D12 -> D3DMetal, D3D11/10 -> DXMT, D3D9 and older -> wined3d
+ * with its OpenGL renderer (its most complete one for old games).
  */
 export function detectGraphicsBackend(exePath: string): LibraryGraphicsBackend {
   let text = ''
@@ -88,7 +89,7 @@ export function detectGraphicsBackend(exePath: string): LibraryGraphicsBackend {
   }
   if (text.includes('d3d12.dll')) return 'd3dmetal'
   if (text.includes('d3d11.dll') || text.includes('d3d10')) return 'dxmt'
-  if (/d3d9\.dll|d3d8\.dll|ddraw\.dll|opengl32\.dll/.test(text)) return 'wined3d'
+  if (/d3d9\.dll|d3d8\.dll|ddraw\.dll|opengl32\.dll/.test(text)) return 'wined3d-gl'
   return 'dxmt'
 }
 

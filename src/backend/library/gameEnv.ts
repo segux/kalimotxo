@@ -12,7 +12,8 @@ import type { LibraryGraphicsBackend } from '../../common/types/library'
 const BACKEND_OVERRIDES: Record<LibraryGraphicsBackend, string[]> = {
   dxmt: ['d3d11=builtin', 'dxgi=builtin', 'd3d10core=builtin'],
   d3dmetal: ['d3d11=builtin', 'd3d12=builtin', 'dxgi=builtin'],
-  wined3d: []
+  wined3d: [],
+  'wined3d-gl': []
 }
 
 function baseEnv(bottle: string): NodeJS.ProcessEnv {
@@ -44,8 +45,15 @@ export function buildLibraryGameEnv(
     dxmt: backend === 'dxmt',
     heapZero: false
   })
-  applyGraphicsEnv(env, backend)
-  if (backend === 'wined3d') {
+  const wined3d = backend === 'wined3d' || backend === 'wined3d-gl'
+  applyGraphicsEnv(env, wined3d ? 'wined3d' : backend)
+  if (backend === 'wined3d-gl') {
+    // Per process, so the bottle's default (Vulkan) stays for other games.
+    // wined3d's OpenGL renderer is its most complete one: e.g. Diablo II
+    // aborts on the Vulkan one (vkCreateImageView) and runs on OpenGL.
+    env.WINE_D3D_CONFIG = 'renderer=gl'
+  }
+  if (wined3d) {
     // Plain Wine D3D: do not route through CrossOver's D3DMetal backend.
     delete env.CX_ACTIVE_GRAPHICS_BACKEND
     delete env.CX_APPLEGPTK_LIBD3DSHARED_PATH

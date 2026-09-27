@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { LibraryGraphicsBackend } from 'common/types/library'
 
-export const BACKENDS: LibraryGraphicsBackend[] = ['dxmt', 'd3dmetal', 'wined3d']
+export const BACKENDS: LibraryGraphicsBackend[] = ['dxmt', 'd3dmetal', 'wined3d-gl', 'wined3d']
 
 /** Graphics layer picker. `auto` lets the backend detect it from the .exe. */
 export function BackendSelect({

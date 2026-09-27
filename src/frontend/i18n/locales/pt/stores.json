@@ -35,7 +35,8 @@
       "auto": "Automática (detetar DirectX)",
       "dxmt": "DXMT — DirectX 10/11",
       "d3dmetal": "D3DMetal — DirectX 12",
-      "wined3d": "Wine — DirectX 9 e anteriores"
+      "wined3d": "Wine (Vulkan) — DirectX 9 e anteriores",
+      "wined3d-gl": "Wine (OpenGL) — DirectX 9 e anteriores, jogos antigos"
     },
     "add": {
       "title": "Adicionar jogo",
@@ -67,7 +68,8 @@
     "backendShort": {
       "dxmt": "DX11",
       "d3dmetal": "DX12",
-      "wined3d": "DX9"
+      "wined3d": "VK",
+      "wined3d-gl": "GL"
     },
     "changeExe": "Alterar executável"
   },

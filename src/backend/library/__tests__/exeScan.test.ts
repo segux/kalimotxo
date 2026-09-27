@@ -62,8 +62,9 @@ describe('detectGraphicsBackend', () => {
   it.each([
     ['D3D12.dll KERNEL32.dll', 'd3dmetal'],
     ['d3d11.dll dxgi.dll', 'dxmt'],
-    ['d3d9.dll user32.dll', 'wined3d'],
-    ['OPENGL32.dll', 'wined3d'],
+    ['d3d9.dll user32.dll', 'wined3d-gl'],
+    ['DDRAW.dll', 'wined3d-gl'],
+    ['OPENGL32.dll', 'wined3d-gl'],
     ['kernel32.dll only', 'dxmt']
   ])('%s -> %s', (imports, expected) => {
     const exe = put('Game/game.exe', `MZ....${imports}....`)

@@ -28,6 +28,12 @@ describe('buildLibraryGameEnv', () => {
     expect(wined3d.CX_ACTIVE_GRAPHICS_BACKEND).toBeUndefined()
   })
 
+  it('wined3d-gl selects the OpenGL renderer per process; wined3d keeps the bottle default', () => {
+    expect(buildLibraryGameEnv('Games', 'wined3d-gl').WINE_D3D_CONFIG).toBe('renderer=gl')
+    expect(buildLibraryGameEnv('Games', 'wined3d').WINE_D3D_CONFIG).toBeUndefined()
+    expect(buildLibraryGameEnv('Games', 'wined3d-gl').CX_ACTIVE_GRAPHICS_BACKEND).toBeUndefined()
+  })
+
   it('installer env has no graphics overrides', () => {
     const env = buildInstallerEnv('Games')
     expect(env.WINEDLLOVERRIDES ?? '').not.toContain('d3d11')
