@@ -37,6 +37,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Bundle cabextract (and winetricks) into the app: the sync script skips
+      # itself in CI, and without it winetricks needs the user's Homebrew.
+      - name: Bundle helper tools
+        run: |
+          brew install cabextract
+          CI= node scripts/sync-bundled-tools.mjs
+          test -x resources/bundled/tools/cabextract
+
       - name: Typecheck
         run: pnpm run codecheck
 

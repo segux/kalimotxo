@@ -1,9 +1,22 @@
 import { existsSync } from 'fs'
+import { dirname } from 'path'
 import { spawn } from 'child_process'
 import { getBottleConfig, saveBottleConfig } from '../bottle'
 import { WINETRICKS_PATH } from '../config/paths'
 import { buildEnv, stopWineForWinetricks } from '../launcher/wineRunner'
 import { filterWinetricksLogLine } from './winetricksLog'
+import { HOMEBREW_PATHS, resolveCabextractPath } from '../setup/toolPaths'
+
+/**
+ * winetricks shells out to cabextract (and unzip/curl). An app opened from the
+ * Finder gets a minimal PATH without Homebrew, so pass the directory of the
+ * cabextract Kalimotxo resolved (bundled or Homebrew) explicitly.
+ */
+function winetricksPath(current: string | undefined): string {
+  const cabextract = resolveCabextractPath()
+  const dirs = [cabextract ? dirname(cabextract) : '', ...HOMEBREW_PATHS, ...(current ?? '').split(':')]
+  return [...new Set(dirs.filter(Boolean))].join(':')
+}
 
 export async function installDep(
   bottleName: string,
@@ -27,7 +40,8 @@ export async function installDep(
 
   return new Promise((resolve) => {
     stopWineForWinetricks(bottleName)
-    const env: NodeJS.ProcessEnv = { ...buildEnv(bottleName), WINEDEBUG: '-all' }
+    const base = buildEnv(bottleName)
+    const env: NodeJS.ProcessEnv = { ...base, WINEDEBUG: '-all', PATH: winetricksPath(base.PATH) }
     const cmd = [WINETRICKS_PATH, '-q']
     if (options?.force) cmd.push('-f')
     cmd.push(verb)

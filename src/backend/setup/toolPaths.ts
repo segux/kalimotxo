@@ -4,7 +4,7 @@ import { execSync } from 'child_process'
 import { CACHE_DIR, RUNTIME_DIR } from '../config/paths'
 import { getBundledCabextractPath, getBundledWinetricksPath } from '../config/bundled'
 
-const HOMEBREW_PATHS = ['/opt/homebrew/bin', '/usr/local/bin']
+export const HOMEBREW_PATHS = ['/opt/homebrew/bin', '/usr/local/bin']
 
 export const TOOLS_DIR = join(RUNTIME_DIR, 'tools')
 export const BUNDLED_CABEXTRACT = join(TOOLS_DIR, 'cabextract')
