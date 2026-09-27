@@ -14,6 +14,7 @@ import {
   symlinkSync,
   writeFileSync
 } from 'fs'
+import { spawnSync } from 'child_process'
 import { basename, dirname, join } from 'path'
 
 import { DXMT_DIR, RUNTIME_DIR } from '../config/paths'
@@ -100,7 +101,7 @@ function signature(wineRoot: string, wineBin: string, dxmtRoot: string): string 
   const dxmt = Object.entries(DXMT_FILES).flatMap(([sub, names]) =>
     names.map((n) => `${sub}/${n}=${fileSig(join(dxmtRoot, sub, n))}`)
   )
-  return JSON.stringify({ v: 2, wineRoot, wine: fileSig(wineBin), dxmtRoot, dxmt, unix })
+  return JSON.stringify({ v: 3, wineRoot, wine: fileSig(wineBin), dxmtRoot, dxmt, unix })
 }
 
 /**
@@ -142,6 +143,59 @@ function mirrorTree(src: string, dest: string, rel = ''): void {
   }
 }
 
+const MH_MAGIC_64 = 0xfeedfacf
+const LC_LOAD_DYLIB = 0x0c
+const LC_LOAD_WEAK_DYLIB = 0x80000018
+const LC_REEXPORT_DYLIB = 0x8000001f
+
+/**
+ * DXMT's `winemetal.so` links `winemac.so` by the absolute path of the Wine it
+ * was built against (`/Users/runner/work/dxmt/.../winemac.so`), which does not
+ * exist on the user's Mac: dyld failed to load it and D2R reported "Failed to
+ * initialize graphics device". Rewrites absolute dylib dependencies that do
+ * not exist to `@loader_path/<name>` (the Wine unix libs next to it), in place
+ * in the load command. Thin 64-bit Mach-O only; returns the rewritten paths.
+ */
+export function relinkMissingDylibs(buf: Buffer, exists: (p: string) => boolean): string[] {
+  if (buf.length < 32 || buf.readUInt32LE(0) !== MH_MAGIC_64) return []
+  const ncmds = buf.readUInt32LE(16)
+  const changed: string[] = []
+  let off = 32
+  for (let i = 0; i < ncmds && off + 8 <= buf.length; i++) {
+    const cmd = buf.readUInt32LE(off)
+    const size = buf.readUInt32LE(off + 4)
+    if (size < 8 || off + size > buf.length) break
+    if (cmd === LC_LOAD_DYLIB || cmd === LC_LOAD_WEAK_DYLIB || cmd === LC_REEXPORT_DYLIB) {
+      const nameOff = off + buf.readUInt32LE(off + 8)
+      const end = buf.indexOf(0, nameOff)
+      const path = buf.toString('utf8', nameOff, end < 0 || end > off + size ? off + size : end)
+      const replacement = `@loader_path/${basename(path)}`
+      if (path.startsWith('/') && !exists(path) && nameOff + replacement.length < off + size) {
+        buf.fill(0, nameOff, off + size)
+        buf.write(replacement, nameOff, 'utf8')
+        changed.push(path)
+      }
+    }
+    off += size
+  }
+  return changed
+}
+
+/** Points winemetal.so at the Wine next to it and re-signs it (ad hoc). */
+function relinkWinemetal(file: string, log?: (m: string) => void): void {
+  const buf = readFileSync(file)
+  const changed = relinkMissingDylibs(buf, existsSync)
+  if (!changed.length) return
+  writeFileSync(file, buf)
+  log?.(`winemetal.so: ${changed.map((p) => basename(p)).join(', ')} -> @loader_path`)
+  // Editing a load command invalidates the signature; macOS kills code whose
+  // signature does not match, so re-sign it ad hoc (codesign ships with macOS).
+  if (process.platform === 'darwin') {
+    const r = spawnSync('/usr/bin/codesign', ['--force', '--sign', '-', file], { encoding: 'utf-8' })
+    if (r.status !== 0) log?.(`codesign winemetal.so failed: ${(r.stderr || '').trim()}`)
+  }
+}
+
 /**
  * Builds (or reuses) at `dest` a mirror of the Wine at `wineRoot` whose
  * `lib/wine` carries DXMT's DLLs. Returns false if a DXMT file is missing.
@@ -176,6 +230,7 @@ export function buildDxmtWine(
       // Unlink first: writing into a hard link would change the original Wine.
       rmSync(to, { force: true })
       copyFileSync(from, to)
+      if (name.endsWith('.so')) relinkWinemetal(to, log)
     }
   }
   writeFileSync(join(tmp, MARKER), sig)
