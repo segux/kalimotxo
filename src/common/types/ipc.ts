@@ -55,7 +55,6 @@ export interface AsyncIPCFunctions {
   battleNetClearLoginCache: () => Promise<OpResult>
   battleNetWakeAgent: () => Promise<OpResult>
   battleNetLaunchGame: (gameId: string) => Promise<OpResult>
-  setupImportD3dmetalFromCrossOver: () => Promise<OpResult>
   setupImportD3dmetalFromDmg: (dmgPath: string) => Promise<OpResult>
   setupEnsureD3dmetal: () => Promise<OpResult>
   setupRepairRuntime: () => Promise<OpResult>
@@ -88,16 +87,7 @@ export interface AsyncIPCFunctions {
   getDetectedWine: () => Promise<{
     installations: { name: string; type: string; bin: string }[]
     active: { name: string; type: string } | null
-    crossoverBottles: string[]
-    crossoverBottleInfos: { name: string; hasBattleNetClient: boolean }[]
-    effectiveCrossoverBottle: string | null
-    recommendedCrossoverBottle: string | null
-    settings: { wineLayer: string; crossoverBottle: string }
   }>
-  setWineLayer: (settings: {
-    wineLayer?: 'runtime' | 'crossover' | 'auto'
-    crossoverBottle?: string
-  }) => Promise<{ success: boolean }>
   libraryList: () => Promise<LibraryEntry[]>
   libraryPickFile: (kind: 'installer' | 'exe') => Promise<string | null>
   libraryInstall: (installerPath: string) => Promise<LibraryInstallResult>

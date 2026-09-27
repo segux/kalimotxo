@@ -40,7 +40,7 @@ export function isD3dmetalRuntimeReady(): boolean {
   )
 }
 
-/** Copia D3DMetal.framework + libd3dshared desde lib/external (GPTK o CrossOver). */
+/** Copia D3DMetal.framework + libd3dshared desde lib/external de Game Porting Toolkit. */
 export function installD3dmetalFromExternalDir(externalDir: string): [boolean, string] {
   if (!existsSync(externalDir)) {
     return [false, `No existe: ${externalDir}`]
@@ -126,43 +126,6 @@ function findExternalInTree(root: string): string | null {
     }
   }
   return null
-}
-
-function crossoverSupportRoots(): string[] {
-  const roots = new Set<string>()
-  const fixed = [
-    '/Applications/CrossOver.app',
-    join(homedir(), 'Applications/CrossOver.app'),
-    join(homedir(), 'Downloads', 'CrossOver.app')
-  ]
-  for (const app of fixed) {
-    if (existsSync(app)) roots.add(join(app, 'Contents', 'SharedSupport', 'CrossOver'))
-  }
-  try {
-    const out = execSync(
-      `mdfind 'kMDItemCFBundleIdentifier = "com.codeweavers.CrossOver"' 2>/dev/null`,
-      { encoding: 'utf-8', timeout: 8000 }
-    ).trim()
-    for (const app of out.split('\n').filter(Boolean)) {
-      roots.add(join(app, 'Contents', 'SharedSupport', 'CrossOver'))
-    }
-  } catch {
-    /* ignore */
-  }
-  return [...roots]
-}
-
-/** Si tienes CrossOver, reutiliza su GPTK sin pagar dos veces. */
-export function installD3dmetalFromCrossOver(): [boolean, string] {
-  for (const root of crossoverSupportRoots()) {
-    if (!existsSync(root)) continue
-    const external = findLibExternal(root)
-    if (external) {
-      const r = installD3dmetalFromExternalDir(external)
-      if (r[0]) return r
-    }
-  }
-  return [false, 'CrossOver no encontrado o sin D3DMetal (lib64/apple_gptk/external)']
 }
 
 export function installD3dmetalFromGptkApp(): [boolean, string] {
@@ -349,7 +312,7 @@ export type EnsureD3dmetalOptions = {
 
 /**
  * Instala D3DMetal en ~/.kalimotxo/runtime/d3dmetal sin pasos manuales cuando es posible.
- * Orden: ya instalado → bundle de la app → CrossOver → GPTK.app → DMGs en Downloads → Homebrew.
+ * Orden: ya instalado → bundle de la app → GPTK.app → DMGs en Downloads → Homebrew.
  */
 export async function ensureD3dmetal(
   options: EnsureD3dmetalOptions = {}
@@ -367,12 +330,6 @@ export async function ensureD3dmetal(
   if (bundled[0]) {
     logInfo(bundled[1])
     return bundled
-  }
-
-  const fromCx = installD3dmetalFromCrossOver()
-  if (fromCx[0]) {
-    logInfo(fromCx[1])
-    return fromCx
   }
 
   const fromApp = installD3dmetalFromGptkApp()
@@ -396,7 +353,7 @@ export async function ensureD3dmetal(
 
   return [
     false,
-    'D3DMetal no disponible. Usa CrossOver, coloca el DMG de Apple GPTK en Descargas, instala GPTK con Homebrew, o embebe D3DMetal en resources/bundled/d3dmetal antes de empaquetar.'
+    'D3DMetal not available. Put Apple\'s Game Porting Toolkit DMG in Downloads or let Kalimotxo install it with Homebrew.'
   ]
 }
 
@@ -406,7 +363,6 @@ export function ensureD3dmetalForDx12Games(): [boolean, string] {
 
   for (const fn of [
     installD3dmetalFromAppBundle,
-    installD3dmetalFromCrossOver,
     installD3dmetalFromGptkApp
   ]) {
     const r = fn()
@@ -420,6 +376,6 @@ export function ensureD3dmetalForDx12Games(): [boolean, string] {
 
   return [
     false,
-    'D3DMetal (GPTK) is missing. Kalimotxo will install it in the wizard if you have CrossOver, GPTK or Homebrew; or click Install D3DMetal in Battle.net.'
+    'D3DMetal (GPTK) is missing. Kalimotxo installs it in the setup wizard from Apple\'s Game Porting Toolkit (via Homebrew if needed).'
   ]
 }

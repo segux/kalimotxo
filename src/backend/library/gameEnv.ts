@@ -1,6 +1,5 @@
 import { getBottleConfig, getBottlePath } from '../bottle'
 import { getActiveWineInstallation } from '../launcher/wineRunner'
-import { resolveCrossoverBottleName } from '../wine/compatibilityLayers'
 import { applyGraphicsEnv } from '../wine/graphicsBackend'
 import { applyMacGameStack, mergeDllOverrides, setupWineEnvVars } from '../wine/wineEnv'
 import type { LibraryGraphicsBackend } from '../../common/types/library'
@@ -25,7 +24,6 @@ function baseEnv(bottle: string): NodeJS.ProcessEnv {
   }
   return setupWineEnvVars({ ...process.env }, getActiveWineInstallation(), {
     winePrefix: getBottlePath(bottle),
-    crossoverBottle: resolveCrossoverBottleName(),
     bottleEnvVars,
     gameLaunch: true
   })

@@ -23,6 +23,20 @@
     "active": "Aktiv: {{name}}",
     "activeNone": "keines",
     "noVersions": "Keine Katalogversionen — Setup nutzen",
-    "bottlesTitle": "Flaschen"
+    "bottlesTitle": "Kalimotxo-Bottles",
+    "catalogTitle": "Wine-Katalog",
+    "kalimotxoWineTitle": "Kalimotxo-Wine-Engine",
+    "kalimotxoWineHint": "Kalimotxo baut und lädt sein eigenes Wine, basierend auf dem Open-Source-Code von CrossOver. Alles liegt unter ~/.kalimotxo – du musst keine andere App installieren.",
+    "refreshCatalog": "Katalog aktualisieren",
+    "refreshing": "GitHub wird abgefragt…",
+    "installRecommended": "Kalimotxo-Wine installieren (empfohlen)",
+    "installingDefault": "Standard-Wine wird installiert…",
+    "install": "Installieren",
+    "activate": "Aktivieren",
+    "remove": "Entfernen",
+    "installed": "installiert",
+    "inUse": "in Verwendung",
+    "kalimotxoBottlesHint": "Wine-Präfixe, die Kalimotxo anlegt (z. B. „Battle.net“ oder „Games“ für deine anderen Spiele).",
+    "noKalimotxoBottles": "Noch keine – sie entstehen beim Installieren von Battle.net oder beim Hinzufügen eines Spiels."
   }
 }

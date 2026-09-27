@@ -2,10 +2,7 @@ import { appendFileSync } from 'fs'
 import { BATTLENET_BOTTLE } from '../storeManagers/battlenet/constants'
 import { prepareBottleForLauncher } from '../storeManagers/battlenet/launcherPrep'
 import { applyBattleNetWindowsRegistry } from '../launcher/wineRunner'
-import {
-  resolveBattleNetWineInstallation,
-  resolveCrossoverBottleName
-} from './compatibilityLayers'
+import { resolveBattleNetWineInstallation } from './compatibilityLayers'
 import { verifyWinePrefix } from './verifyPrefix'
 import { prepareBattleNetOAuthForMac } from '../storeManagers/battlenet/oauthSetup'
 import { syncLaunchRuntime } from '../storeManagers/battlenet/deps'
@@ -20,23 +17,17 @@ export function prepareBattleNetWineLaunch(logPath?: string): {
 
   try {
     const installation = resolveBattleNetWineInstallation()
-    const crossoverBottle = resolveCrossoverBottleName()
     log(`Wine: ${installation.name} (${installation.type})`)
-    if (crossoverBottle) log(`CrossOver bottle: ${crossoverBottle}`)
 
     prepareBattleNetOAuthForMac(log)
 
-    if (installation.type !== 'crossover') {
-      prepareBottleForLauncher()
-      const runtime = syncLaunchRuntime()
-      if (runtime.length) log(`Runtime: ${runtime.join(', ')}`)
-      const prefixCheck = verifyWinePrefix(BATTLENET_BOTTLE, installation)
-      log(prefixCheck.message)
-      if (!prefixCheck.ok) return { ok: false, message: prefixCheck.message }
-      applyBattleNetWindowsRegistry(BATTLENET_BOTTLE)
-    } else if (crossoverBottle) {
-      log('Usando botella CrossOver (sin prefix Kalimotxo)')
-    }
+    prepareBottleForLauncher()
+    const runtime = syncLaunchRuntime()
+    if (runtime.length) log(`Runtime: ${runtime.join(', ')}`)
+    const prefixCheck = verifyWinePrefix(BATTLENET_BOTTLE, installation)
+    log(prefixCheck.message)
+    if (!prefixCheck.ok) return { ok: false, message: prefixCheck.message }
+    applyBattleNetWindowsRegistry(BATTLENET_BOTTLE)
 
     return { ok: true, message: `Listo con ${installation.name}` }
   } catch (e) {

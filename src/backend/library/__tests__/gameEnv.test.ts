@@ -5,9 +5,6 @@ jest.mock('../../bottle', () => ({
 jest.mock('../../launcher/wineRunner', () => ({
   getActiveWineInstallation: () => ({ bin: '/fake/wine/bin/wine', name: 'Wine 11', type: 'wine' })
 }))
-jest.mock('../../wine/compatibilityLayers', () => ({
-  resolveCrossoverBottleName: () => undefined
-}))
 
 import { buildInstallerEnv, buildLibraryGameEnv } from '../gameEnv'
 

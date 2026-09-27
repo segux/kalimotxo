@@ -20,12 +20,11 @@
   },
   "wine": {
     "installedTitle": "Installed Wine",
-    "catalogTitle": "Wine catalog (Heroic-style)",
+    "catalogTitle": "Wine catalog",
     "kalimotxoWineTitle": "Kalimotxo Wine engine",
-    "kalimotxoWineHint": "Kalimotxo ships its own Wine layer (like CrossOver, but free). Everything lives under ~/.kalimotxo — you do not need the paid CrossOver app.",
+    "kalimotxoWineHint": "Kalimotxo builds and downloads its own Wine, based on CrossOver's open-source code. Everything lives under ~/.kalimotxo — you do not need to install any other app.",
     "refreshCatalog": "Refresh catalog",
     "refreshing": "Fetching from GitHub…",
-    "installCrossover": "Install Wine-Crossover (recommended)",
     "installingDefault": "Installing default Wine…",
     "install": "Install",
     "activate": "Activate",
@@ -36,7 +35,8 @@
     "activeNone": "none",
     "noVersions": "No versions — click Refresh catalog",
     "bottlesTitle": "Kalimotxo bottles",
-    "kalimotxoBottlesHint": "Wine prefixes Kalimotxo creates (e.g. when installing Battle.net). Not the same as CrossOver bottles above.",
-    "noKalimotxoBottles": "None yet — created when you install Battle.net from the store."
+    "kalimotxoBottlesHint": "Wine prefixes Kalimotxo creates (e.g. “Battle.net”, or “Games” for your other games).",
+    "noKalimotxoBottles": "None yet — created when you install Battle.net or add a game.",
+    "installRecommended": "Install Kalimotxo Wine (recommended)"
   }
 }

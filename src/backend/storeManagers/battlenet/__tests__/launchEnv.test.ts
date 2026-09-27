@@ -1,5 +1,5 @@
 import { buildBattleNetLaunchEnv } from '../../../launcher/wineRunner'
-import { setupWineEnvVars, isCrossOverRealBinary } from '../../../wine/wineEnv'
+import { setupWineEnvVars } from '../../../wine/wineEnv'
 import type { WineInstallation } from '../../../wine/types'
 
 jest.mock('../../../bottle', () => ({
@@ -28,8 +28,7 @@ jest.mock('../../../wine/compatibilityLayers', () => ({
     bin: '/fake/wine',
     name: 'Test',
     type: 'wine'
-  }),
-  resolveCrossoverBottleName: () => undefined
+  })
 }))
 
 describe('buildBattleNetLaunchEnv', () => {
@@ -77,72 +76,11 @@ describe('setupWineEnvVars — soporte WRITECOPY por tipo de Wine', () => {
     expect(env.WINE_HEAP_ZERO_MEMORY).toBe('1')
   })
 
-  it('activa WRITECOPY en builds tipo CrossOver / D4Mac', () => {
+  it('enables WRITECOPY on CrossOver-source builds (Kalimotxo Wine)', () => {
     const env = setupWineEnvVars({}, cx, {
       winePrefix: '/tmp/bottle',
       battleNetLaunch: true
     })
     expect(env.WINE_SIMULATE_WRITECOPY).toBe('1')
-  })
-})
-
-describe('isCrossOverRealBinary', () => {
-  it('detects the real CrossOver binary path', () => {
-    const realCx: WineInstallation = {
-      bin: '/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine',
-      name: 'CrossOver 26.1',
-      type: 'crossover'
-    }
-    expect(isCrossOverRealBinary(realCx)).toBe(true)
-  })
-
-  it('returns false for the CrossOver Perl launcher script', () => {
-    const scriptCx: WineInstallation = {
-      bin: '/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine',
-      name: 'CrossOver 26.1',
-      type: 'crossover'
-    }
-    expect(isCrossOverRealBinary(scriptCx)).toBe(false)
-  })
-
-  it('returns false for regular Wine', () => {
-    const regular: WineInstallation = {
-      bin: '/home/user/.kalimotxo/runtime/wine/Wine-11.0/bin/wine',
-      name: 'Wine 11.0',
-      type: 'wine'
-    }
-    expect(isCrossOverRealBinary(regular)).toBe(false)
-  })
-})
-
-describe('setupWineEnvVars — CrossOver real binary mode', () => {
-  it('sets WINEPREFIX (not CX_BOTTLE) when using real CrossOver binary', () => {
-    const realCx: WineInstallation = {
-      bin: '/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine',
-      name: 'CrossOver 26.1',
-      type: 'crossover'
-    }
-    const env = setupWineEnvVars({}, realCx, {
-      winePrefix: '/tmp/bottle',
-      battleNetLaunch: true
-    })
-    expect(env.WINEPREFIX).toBe('/tmp/bottle')
-    expect(env.CX_BOTTLE).toBeUndefined()
-    expect(env.WINEARCH).toBe('win64')
-  })
-
-  it('sets CX_BOTTLE (not WINEPREFIX) when using CrossOver Perl launcher', () => {
-    const scriptCx: WineInstallation = {
-      bin: '/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine',
-      name: 'CrossOver 26.1',
-      type: 'crossover'
-    }
-    const env = setupWineEnvVars({}, scriptCx, {
-      winePrefix: '/tmp/bottle',
-      crossoverBottle: 'Battle.net',
-      battleNetLaunch: true
-    })
-    expect(env.CX_BOTTLE).toBe('Battle.net')
-    expect(env.WINEPREFIX).toBeUndefined()
   })
 })

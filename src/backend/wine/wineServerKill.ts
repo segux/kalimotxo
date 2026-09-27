@@ -6,10 +6,7 @@ import { getBottlePath } from '../bottle'
 import { WINE_DIR } from '../config/paths'
 import { findWine64InTree } from './manager/installed'
 import { loadCatalog } from './manager/catalog'
-import {
-  getCrossoverInstallations,
-  getRuntimeWineInstallation
-} from './compatibilityLayers'
+import { getRuntimeWineInstallation } from './compatibilityLayers'
 import type { WineInstallation } from './types'
 import { resolveWineserver, wineserverSibling } from './wineserverPath'
 
@@ -18,7 +15,7 @@ function wineserverPath(installation: WineInstallation): string | null {
   return ws && existsSync(ws) ? ws : null
 }
 
-/** Todos los wineserver instalados (CrossOver, Wine-Crossover, legacy, etc.). */
+/** Every wineserver of the Wine runtimes Kalimotxo installed (active, catalog, legacy). */
 export function collectWineserverPaths(): string[] {
   const paths = new Set<string>()
   const add = (installation: WineInstallation | null): void => {
@@ -27,7 +24,6 @@ export function collectWineserverPaths(): string[] {
   }
 
   add(getRuntimeWineInstallation())
-  for (const cx of getCrossoverInstallations()) add(cx)
   for (const rel of loadCatalog()) {
     if (!rel.is_installed) continue
     if (!rel.install_dir) continue

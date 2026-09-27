@@ -66,7 +66,7 @@
     "dxmtInstalled": "DXMT installed",
     "installingWinetricks": "Installing winetricks…",
     "winetricksReady": "winetricks ready",
-    "d3dmetalSearching": "Looking for D3DMetal (CrossOver, GPTK, Homebrew)…",
+    "d3dmetalSearching": "Looking for D3DMetal (Game Porting Toolkit, Homebrew)…",
     "battlenetStarting": "Preparing Battle.net installation…"
   },
   "settings": {

@@ -23,7 +23,6 @@ import { downloadAll, downloadComponent, getDownloadStatus, isSetupComplete } fr
 import { repairRuntime } from '../setup/repairRuntime'
 import {
   ensureD3dmetal,
-  installD3dmetalFromCrossOver,
   installD3dmetalFromGptkDmg
 } from '../wine/d3dmetalSetup'
 import { getSetupWizardState, runSetupWizard, skipSetupWizard } from '../setup/wizard'
@@ -40,7 +39,6 @@ import {
   setActiveWineVersion
 } from '../wine/manager/manager'
 import {
-  getWineSettings,
   listDetectedWineInstallations,
   resolveBattleNetWineInstallation
 } from '../wine/compatibilityLayers'
@@ -87,11 +85,6 @@ export function registerAllHandlers(): void {
   )
 
   addHandler('setupDownloadAll', async () => downloadAll())
-
-  addHandler('setupImportD3dmetalFromCrossOver', async () => {
-    const [ok, message] = installD3dmetalFromCrossOver()
-    return { success: ok, message }
-  })
 
   addHandler('setupImportD3dmetalFromDmg', async (_e, dmgPath: string) => {
     const [ok, message] = installD3dmetalFromGptkDmg(dmgPath)
@@ -195,12 +188,7 @@ export function registerAllHandlers(): void {
         type: i.type,
         bin: i.bin
       })),
-      active,
-      crossoverBottles: [],
-      crossoverBottleInfos: [],
-      effectiveCrossoverBottle: null,
-      recommendedCrossoverBottle: null,
-      settings: getWineSettings()
+      active
     }
   })
 
@@ -240,16 +228,5 @@ export function registerAllHandlers(): void {
     if (!game || !existsSync(game.exe)) return { success: false, message: 'Game not found' }
     shell.showItemInFolder(game.exe)
     return { success: true, message: '' }
-  })
-
-  addHandler('setWineLayer', async (_e, settings) => {
-    const cfg = loadGlobalConfig()
-    if (settings.wineLayer) cfg.wineLayer = settings.wineLayer
-    if (settings.crossoverBottle !== undefined) {
-      cfg.crossoverBottle = settings.crossoverBottle
-    }
-    saveGlobalConfig(cfg)
-    resetWineInstallationCache()
-    return { success: true }
   })
 }

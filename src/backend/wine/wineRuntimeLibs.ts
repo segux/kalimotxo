@@ -29,11 +29,11 @@ import type { WineInstallation } from './types'
 /** `<root>/lib/wine/x86_64-unix` of the active Wine (next to winevulkan.so/secur32.so).
  *  Handles two layouts:
  *  1. Flat: `root/bin/wine` → `root/lib/wine/x86_64-unix`
- *  2. CrossOver real binary: `.../lib/wine/x86_64-unix/wine` → same dir */
+ *  2. Binary inside x86_64-unix (`.../lib/wine/x86_64-unix/wine`) → same dir */
 function wineUnixLibDir(installation: WineInstallation): string | null {
   const bin = installation.bin
   const binDir = dirname(bin)
-  // CrossOver real binary lives directly in x86_64-unix/
+  // Some builds keep the loader directly in x86_64-unix/
   if (binDir.endsWith('/x86_64-unix') || binDir.endsWith('\\x86_64-unix')) {
     return existsSync(binDir) ? binDir : null
   }

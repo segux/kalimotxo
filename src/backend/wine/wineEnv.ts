@@ -145,16 +145,6 @@ function prependPath(existing: string | undefined, parts: string[]): string {
   return [...new Set(all)].join(':')
 }
 
-/**
- * Detects whether the CrossOver binary is the real patched wine executable
- * (e.g. `…/lib/wine/x86_64-unix/wine`) rather than the Perl launcher script
- * (`…/bin/wine`). When using the real binary we must set WINEPREFIX ourselves.
- */
-export function isCrossOverRealBinary(installation: WineInstallation): boolean {
-  return installation.type === 'crossover' &&
-    installation.bin.includes('/lib/wine/x86_64-unix/wine')
-}
-
 /** Last occurrence wins (avoids locationapi=n,b and locationapi=d at the same time). */
 export function mergeDllOverrides(existing: string | undefined, extra: string[]): string {
   const map = new Map<string, string>()
@@ -260,7 +250,6 @@ export function setupWineEnvVars(
   installation: WineInstallation,
   options: {
     winePrefix?: string
-    crossoverBottle?: string
     bottleEnvVars?: Record<string, string>
     battleNetLaunch?: boolean
     gameLaunch?: boolean
@@ -289,32 +278,10 @@ export function setupWineEnvVars(
     }
   }
 
-  switch (installation.type) {
-    case 'crossover':
-      if (isCrossOverRealBinary(installation)) {
-        // Using the real CrossOver patched binary directly (not the Perl
-        // launcher). We must set WINEPREFIX ourselves; CX_BOTTLE is ignored.
-        if (options.winePrefix) {
-          env.WINEPREFIX = options.winePrefix
-        }
-        env.WINEARCH = env.WINEARCH ?? 'win64'
-      } else {
-        // Using the CrossOver Perl launcher script — it reads CX_BOTTLE.
-        if (options.crossoverBottle) {
-          env.CX_BOTTLE = options.crossoverBottle
-        }
-        delete env.WINEPREFIX
-      }
-      break
-    case 'toolkit':
-    case 'wine':
-    default:
-      if (options.winePrefix) {
-        env.WINEPREFIX = options.winePrefix
-      }
-      env.WINEARCH = env.WINEARCH ?? 'win64'
-      break
+  if (options.winePrefix) {
+    env.WINEPREFIX = options.winePrefix
   }
+  env.WINEARCH = env.WINEARCH ?? 'win64'
 
   env.WINEDLLOVERRIDES = mergeDllOverrides(env.WINEDLLOVERRIDES, [WINEMENU_DISABLE])
 

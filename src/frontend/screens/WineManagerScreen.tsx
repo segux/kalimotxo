@@ -64,7 +64,8 @@ export default function WineManagerScreen() {
   const onInstallHeroicDefault = async () => {
     setBusy(true)
     setInstallStatus(t('wine.installingDefault'))
-    const r = await window.api.installWineVersion('Wine-Crossover-latest')
+    await window.api.refreshWineCatalog()
+    const r = await window.api.installWineVersion('Wine-BattleNet-latest')
     if (!r.success) {
       const r2 = await window.api.installWineVersion('Wine-Staging-macOS-latest')
       setInstallStatus(r2.message)
@@ -98,7 +99,7 @@ export default function WineManagerScreen() {
             {t('wine.refreshCatalog')}
           </Button>
           <Button type="button" className="px-3 py-1.5 text-xs" disabled={busy} onClick={onInstallHeroicDefault}>
-            {t('wine.installCrossover')}
+            {t('wine.installRecommended')}
           </Button>
         </div>
         <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto text-sm">

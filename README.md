@@ -74,8 +74,8 @@ The wizard downloads:
   See [docs/wine-build.md](docs/wine-build.md).
 - DXMT (translates DirectX 10/11 calls to Metal — Apple's GPU API)
 - D3DMetal from Apple's Game Porting Toolkit, only needed for DirectX 12 games such as
-  Diablo IV. Kalimotxo takes it from CrossOver or the Game Porting Toolkit if you have
-  them, or installs Apple's toolkit through Homebrew.
+  Diablo IV. Kalimotxo takes it from the Game Porting Toolkit if you already have it, or
+  installs Apple's toolkit through Homebrew.
 - Rosetta 2 (if not already installed)
 
 This is a one-time download of a few hundred MB, stored in `~/.kalimotxo`. Once done,

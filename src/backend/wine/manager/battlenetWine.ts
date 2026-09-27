@@ -33,7 +33,7 @@ export async function ensureBattleNetReadyWine(
     return true
   }
 
-  log('Downloading the Battle.net Wine (CrossOver build)...')
+  log('Downloading Kalimotxo Wine...')
   await refreshWineReleases(['wine-battlenet'])
   if (!findRelease(LATEST)?.download) {
     log('No Battle.net Wine release is available yet')

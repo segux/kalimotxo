@@ -26,10 +26,6 @@ export function verifyWinePrefix(
   bottleName: string,
   installation: WineInstallation
 ): { ok: boolean; message: string } {
-  if (installation.type === 'crossover') {
-    return { ok: true, message: 'CrossOver bottle (sin WINEPREFIX propio)' }
-  }
-
   const prefix = getBottlePath(bottleName)
   const systemReg = join(prefix, 'system.reg')
   if (!existsSync(prefix)) {

@@ -97,7 +97,7 @@ function applyD3dmetalToBottle(bottleName: string): [boolean, string] {
   if (!existsSync(frameworkSrc)) {
     return [
       false,
-      'D3DMetal not installed. Import GPTK (Apple DMG) or install CrossOver and use Import D3DMetal in Settings.'
+      'D3DMetal not installed. Put Apple\'s Game Porting Toolkit DMG in Downloads or install it from Settings.'
     ]
   }
 
@@ -161,7 +161,7 @@ export function applyGraphicsBackend(
   }
   if (backend === 'd3dmetal') {
     if (!isD3dmetalInstalled()) {
-      return [false, 'D3DMetal not in runtime. Import GPTK or from CrossOver.']
+      return [false, 'D3DMetal not in runtime. Import Apple\'s Game Porting Toolkit.']
     }
     return applyD3dmetalToBottle(bottleName)
   }

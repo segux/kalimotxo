@@ -103,20 +103,19 @@ export function isMacSonomaOrHigher(): boolean {
   }
 }
 
-/** Heroic: Intel or macOS < Sonoma -> Wine-Crossover; Apple Silicon Sonoma+ -> GPTK. */
+/**
+ * Default Wine for the setup: Kalimotxo's own build (runs Battle.net), then the
+ * Gcenx Staging / GPTK builds as fallbacks.
+ */
 export function pickHeroicDefaultWineVersion(catalog?: WineRelease[]): string | null {
   if (process.platform !== 'darwin') return null
   const list = catalog ?? loadCatalog()
-  const preferCrossover = process.arch === 'x64' || !isMacSonomaOrHigher()
-  // Kalimotxo's own CrossOver build runs Battle.net; prefer it on Apple Silicon.
   const battleNet = 'Wine-BattleNet-latest'
-  if (!preferCrossover && list.some((r) => r.version === battleNet && r.download)) {
-    return battleNet
-  }
-  const primary = preferCrossover ? 'Wine-Crossover-latest' : 'Game-Porting-Toolkit-latest'
-  if (list.some((r) => r.version === primary && r.download)) return primary
+  if (list.some((r) => r.version === battleNet && r.download)) return battleNet
   const staging = 'Wine-Staging-macOS-latest'
   if (list.some((r) => r.version === staging && r.download)) return staging
+  const gptk = 'Game-Porting-Toolkit-latest'
+  if (isMacSonomaOrHigher() && list.some((r) => r.version === gptk && r.download)) return gptk
   const any = list.find((r) => r.version.endsWith('-latest') && r.download)
   return any?.version ?? null
 }
@@ -304,7 +303,7 @@ export function removeWineVersion(version: string): { success: boolean; message:
   return { success: true, message: `${version} removed` }
 }
 
-/** Setup: Wine-Crossover (Heroic) or GPTK depending on hardware, with Staging legacy fallback. */
+/** Setup: install the default Wine (see pickHeroicDefaultWineVersion). */
 export async function ensureHeroicDefaultWine(
   onProgress?: (pct: number, msg: string) => void
 ): Promise<{ success: boolean; message: string }> {
@@ -322,5 +321,5 @@ export async function ensureHeroicDefaultWine(
     })
     if (result.success) return result
   }
-  return { success: false, message: 'Could not install default Wine (Heroic)' }
+  return { success: false, message: 'Could not install the default Wine' }
 }

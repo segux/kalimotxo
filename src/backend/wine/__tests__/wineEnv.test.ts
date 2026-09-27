@@ -7,12 +7,6 @@ const wineInstall: WineInstallation = {
   type: 'wine'
 }
 
-const crossoverInstall: WineInstallation = {
-  bin: '/fake/crossover/wine',
-  name: 'CrossOver',
-  type: 'crossover'
-}
-
 describe('setupWineEnvVars (Heroic-style)', () => {
   it('sets WINEPREFIX and disables winemenubuilder for wine', () => {
     const env = setupWineEnvVars({}, wineInstall, {
@@ -51,12 +45,11 @@ describe('setupWineEnvVars (Heroic-style)', () => {
     expect(env.WINE_DISABLE_VA_ALLOC).toBe('1')
   })
 
-  it('uses CX_BOTTLE for crossover', () => {
-    const env = setupWineEnvVars({}, crossoverInstall, {
-      winePrefix: '/tmp/prefix',
-      crossoverBottle: 'Battle.net'
+  it('always runs in the Kalimotxo prefix, never a CrossOver bottle', () => {
+    const env = setupWineEnvVars({ CX_BOTTLE: 'Battle.net' }, wineInstall, {
+      winePrefix: '/tmp/prefix'
     })
-    expect(env.CX_BOTTLE).toBe('Battle.net')
-    expect(env.WINEPREFIX).toBeUndefined()
+    expect(env.WINEPREFIX).toBe('/tmp/prefix')
+    expect(env.CX_BOTTLE).toBe('Battle.net') // inherited env is not ours to clear
   })
 })

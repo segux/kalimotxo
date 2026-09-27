@@ -4,10 +4,7 @@ import type { ChildProcess } from 'child_process'
 import { execSync, spawn as cpSpawn, spawnSync } from 'child_process'
 import { getBottleConfig, getBottlePath } from '../bottle'
 import { BATTLENET_BOTTLE } from '../storeManagers/battlenet/constants'
-import {
-  resolveBattleNetWineInstallation,
-  resolveCrossoverBottleName
-} from '../wine/compatibilityLayers'
+import { resolveBattleNetWineInstallation } from '../wine/compatibilityLayers'
 import { applyGraphicsEnvForBottle } from '../wine/graphicsBackend'
 import { mergeDllOverrides, setupWineEnvVars } from '../wine/wineEnv'
 import type { WineInstallation } from '../wine/types'
@@ -48,7 +45,6 @@ export function buildEnv(bottleName: string): NodeJS.ProcessEnv {
     installation,
     {
       winePrefix: prefix,
-      crossoverBottle: resolveCrossoverBottleName(),
       bottleEnvVars: cfg.env_vars,
       battleNetLaunch: false
     }
@@ -67,7 +63,6 @@ export function buildBattleNetLaunchEnv(
     installation,
     {
       winePrefix: prefix,
-      crossoverBottle: resolveCrossoverBottleName(),
       bottleEnvVars: cfg.env_vars,
       battleNetLaunch: true,
       gameLaunch: options?.gameLaunch
@@ -183,8 +178,6 @@ export function applyBattleNetWindowsRegistry(
   bottleName = BATTLENET_BOTTLE,
   options?: { force?: boolean }
 ): void {
-  if (resolveCrossoverBottleName()) return
-
   const prefix = getBottlePath(bottleName)
   const marker = join(prefix, WIN10_REGISTRY_MARKER)
   if (!options?.force && existsSync(marker)) return
