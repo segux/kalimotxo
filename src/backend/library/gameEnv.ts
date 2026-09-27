@@ -1,5 +1,9 @@
+import { spawnSync } from 'child_process'
+import { readdirSync, rmSync, writeFileSync } from 'fs'
+import { dirname, join } from 'path'
+
 import { getBottleConfig, getBottlePath } from '../bottle'
-import { getActiveWineInstallation } from '../launcher/wineRunner'
+import { buildEnv, getActiveWineInstallation, getWineBinary } from '../launcher/wineRunner'
 import { applyGraphicsEnv } from '../wine/graphicsBackend'
 import { applyMacGameStack, mergeDllOverrides, setupWineEnvVars } from '../wine/wineEnv'
 import type { LibraryGraphicsBackend } from '../../common/types/library'
@@ -62,6 +66,54 @@ export function buildLibraryGameEnv(
   // applyMacGameStack silences everything; keep errors for the game log.
   env.WINEDEBUG = 'fixme-all,err+module'
   return env
+}
+
+/**
+ * `WINE_D3D_CONFIG=renderer=gl` (set by buildLibraryGameEnv for the process
+ * Kalimotxo directly launches) only reaches that one process: a launcher
+ * that spawns the actual game as a child (e.g. Project Diablo 2's
+ * PD2Launcher.exe -> Game.exe) does not pass it on, and wined3d falls back
+ * to Vulkan/MoltenVK there — the exact crash (GL_INVALID_FRAMEBUFFER_OPERATION)
+ * the `wined3d-gl` backend exists to avoid. The registry equivalent
+ * (`HKCU\Software\Wine\AppDefaults\<exe>\Direct3D`, `renderer=gl`) is
+ * per-exe and Wine reads it fresh for every process, launcher or not.
+ * Applied to every `.exe` next to the game's own, since which one ends up
+ * doing the 3D rendering is not always obvious from the outside.
+ */
+export function applyWined3dGlAppDefaults(
+  bottle: string,
+  exe: string,
+  log?: (m: string) => void
+): boolean {
+  const dir = dirname(exe)
+  let names: string[]
+  try {
+    names = readdirSync(dir).filter((n) => n.toLowerCase().endsWith('.exe'))
+  } catch {
+    return false
+  }
+  if (!names.length) return false
+
+  const lines = ['REGEDIT4', '']
+  for (const name of names) {
+    lines.push(`[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\${name}\\Direct3D]`, '"renderer"="gl"', '')
+  }
+  const regFile = join(getBottlePath(bottle), 'drive_c', 'kalimotxo-wined3d-gl.reg')
+  writeFileSync(regFile, lines.join('\r\n'))
+  try {
+    const r = spawnSync(getWineBinary(bottle), ['regedit', '/S', 'C:\\kalimotxo-wined3d-gl.reg'], {
+      env: buildEnv(bottle),
+      timeout: 30_000
+    })
+    if (r.status !== 0) {
+      log?.(`OpenGL AppDefaults: regedit failed (${r.status ?? r.signal})`)
+      return false
+    }
+    log?.(`OpenGL renderer forced for: ${names.join(', ')}`)
+    return true
+  } finally {
+    rmSync(regFile, { force: true })
+  }
 }
 
 /** Installers only need a working prefix: no graphics layer overrides. */

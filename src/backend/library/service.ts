@@ -40,7 +40,7 @@ import {
   rankExeCandidates,
   snapshotExes
 } from './exeScan'
-import { buildInstallerEnv, buildLibraryGameEnv } from './gameEnv'
+import { applyWined3dGlAppDefaults, buildInstallerEnv, buildLibraryGameEnv } from './gameEnv'
 import {
   addLibraryGameRecord,
   getLibraryGame,
@@ -302,6 +302,10 @@ export async function launchGame(id: string): Promise<OpResult> {
   const env = buildLibraryGameEnv(game.bottle, game.backend)
   // DXMT next to the exe, loaded as native (see wine/dxmt.ts).
   if (game.backend === 'dxmt') ensureDxmtForExe(getActiveWineInstallation(), game.exe, log)
+  // A launcher that spawns the real game as a child (Project Diablo 2's
+  // PD2Launcher.exe -> Game.exe) does not pass on WINE_D3D_CONFIG: force the
+  // OpenGL renderer via the per-exe registry instead (see gameEnv.ts).
+  if (game.backend === 'wined3d-gl') applyWined3dGlAppDefaults(game.bottle, game.exe, log)
   log(`Bottle: ${game.bottle} | backend: ${game.backend} | args: ${game.args.join(' ')}`)
   log(`Overrides: ${env.WINEDLLOVERRIDES ?? ''}`)
   const proc = runExe(game.bottle, game.exe, {
