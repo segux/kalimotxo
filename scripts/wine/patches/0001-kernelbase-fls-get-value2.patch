@@ -1,0 +1,66 @@
+kernelbase: implement FlsGetValue2, the newer FLS lookup UCRT/VCRuntime
+probe for and call unconditionally when found.
+
+Missing on upstream Wine (11.0 and later) and on CrossOver's own build too
+(checked directly), not just Kalimotxo's — a real Wine gap, not something
+specific to this project. A modern native DLL that links a recent UCRT
+calls FlsGetValue2() from a hot path expecting it to leave the calling
+thread's last-error code untouched, unlike FlsGetValue(). When the symbol
+is missing Wine does not fail the GetProcAddress lookup gracefully: it
+crashes with an unrelated-looking Wine stack overflow instead. Seen on
+Project Diablo 2's Game.exe (PD2_EXT.dll, its own modern native addition
+to the original 2000 Blizzard engine) right as it starts, well before any
+graphics init — every install of it, not something D3D/graphics-related.
+
+Same shape as FlsGetValue(), routing straight to RtlFlsGetValue() (which
+never touches last-error) instead of through set_ntstatus() (which does).
+
+--- a/dlls/kernelbase/thread.c	2026-09-27 23:20:07
++++ b/dlls/kernelbase/thread.c	2026-09-27 23:20:07
+@@ -1308,6 +1308,26 @@
+ 
+     if (!set_ntstatus( RtlFlsGetValue( index, &data ))) return NULL;
+     SetLastError( ERROR_SUCCESS );
++    return data;
++}
++
++
++/***********************************************************************
++ *           FlsGetValue2   (kernelbase.@)
++ *
++ * Newer Windows-internal variant of FlsGetValue(), missing from Wine (and
++ * from real Windows on older builds too): newer UCRT/VCRuntime builds probe
++ * for it via GetProcAddress and call it from a hot path that must not
++ * disturb the calling thread's last-error code, unlike FlsGetValue(). Its
++ * absence used to crash such games and apps with a Wine stack overflow
++ * instead of the graceful fallback a missing GetProcAddress result should
++ * get (e.g. Project Diablo 2's Game.exe via a modern PD2_EXT.dll).
++ */
++PVOID WINAPI DECLSPEC_HOTPATCH FlsGetValue2( DWORD index )
++{
++    void *data;
++
++    if (!NT_SUCCESS( RtlFlsGetValue( index, &data ))) return NULL;
+     return data;
+ }
+ 
+--- a/dlls/kernelbase/kernelbase.spec	2026-09-27 23:20:07
++++ b/dlls/kernelbase/kernelbase.spec	2026-09-27 23:20:19
+@@ -388,6 +388,7 @@
+ @ stdcall FlsAlloc(ptr)
+ @ stdcall FlsFree(long)
+ @ stdcall FlsGetValue(long)
++@ stdcall FlsGetValue2(long)
+ @ stdcall FlsSetValue(long ptr)
+ @ stdcall FlushConsoleInputBuffer(long)
+ @ stdcall FlushFileBuffers(long)
+--- a/dlls/kernel32/kernel32.spec	2026-09-27 23:20:07
++++ b/dlls/kernel32/kernel32.spec	2026-09-27 23:20:19
+@@ -524,6 +524,7 @@
+ @ stdcall -import FlsAlloc(ptr)
+ @ stdcall -import FlsFree(long)
+ @ stdcall -import FlsGetValue(long)
++@ stdcall -import FlsGetValue2(long)
+ @ stdcall -import FlsSetValue(long ptr)
+ @ stdcall -import FlushConsoleInputBuffer(long)
+ @ stdcall -import FlushFileBuffers(long)

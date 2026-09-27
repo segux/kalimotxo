@@ -103,6 +103,14 @@ jobs:
           test -f "$WINE_SRC/configure"
           echo "WINE_SRC=$WINE_SRC" >> "$GITHUB_ENV"
 
+      - name: Apply Kalimotxo patches
+        run: |
+          set -euo pipefail
+          for p in "$GITHUB_WORKSPACE"/scripts/wine/patches/*.patch; do
+            echo "Applying $p"
+            patch -d "$WINE_SRC" -p1 < "$p"
+          done
+
       - name: Restore ccache
         uses: actions/cache@v4
         with:
