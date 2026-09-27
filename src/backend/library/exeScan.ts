@@ -10,7 +10,7 @@ const MAX_ENTRIES = 60_000
 
 /** Helper executables that are never the game itself. */
 const NOT_A_GAME_RE =
-  /^(unins|uninstall|setup|install|vc_?redist|vcredist|dxsetup|dxwebsetup|dotnet|ndp\d|directx|oalinst|physx|ue\d?prereq|crashreport|crashhandler|unitycrashhandler|crashpad|cefsharp|qtwebengineprocess|7z|update|updater|patcher|eac|easyanticheat|battleye|redist)/i
+  /^(unins|uninstall|setup|install|downloader|vc_?redist|vcredist|dxsetup|dxwebsetup|dotnet|ndp\d|directx|oalinst|physx|ue\d?prereq|crashreport|crashhandler|unitycrashhandler|crashpad|cefsharp|qtwebengineprocess|7z|update|updater|patcher|eac|easyanticheat|battleye|redist)/i
 
 /** All .exe files under `driveC` (except Windows dirs), with their sizes. */
 export function snapshotExes(driveC: string): Map<string, number> {
@@ -44,8 +44,10 @@ export function snapshotExes(driveC: string): Map<string, number> {
 }
 
 /**
- * Ranks the executables an installer added: helpers go last, then bigger
- * files first (the game binary is usually the largest exe it installs).
+ * The executables an installer added that can be the game, bigger first (the
+ * game binary is usually the largest). Installers, downloaders, uninstallers
+ * and runtime setups are never proposed: games are often installed through a
+ * downloader that runs a second installer, and those were being offered.
  */
 export function rankExeCandidates(
   before: Map<string, number>,
@@ -53,20 +55,15 @@ export function rankExeCandidates(
   driveC: string
 ): ExeCandidate[] {
   const added = [...after.entries()].filter(([p]) => !before.has(p))
-  const candidates = added
-    .map(([path, size]) => ({
+  return added
+    .filter(([path]) => !NOT_A_GAME_RE.test(basename(path)))
+    .sort((a, b) => b[1] - a[1])
+    .map(([path, size], i) => ({
       path,
       label: relative(driveC, path),
       size,
-      helper: NOT_A_GAME_RE.test(basename(path))
+      suggested: i === 0
     }))
-    .sort((a, b) => Number(a.helper) - Number(b.helper) || b.size - a.size)
-  return candidates.map((c, i) => ({
-    path: c.path,
-    label: c.label,
-    size: c.size,
-    suggested: i === 0 && !c.helper
-  }))
 }
 
 const SCAN_BYTES = 64 * 1024 * 1024

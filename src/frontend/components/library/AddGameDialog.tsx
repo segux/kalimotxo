@@ -56,8 +56,8 @@ export function AddGameDialog({ onClose, onAdded }: { onClose: () => void; onAdd
       return
     }
     setCandidates(r.candidates)
-    const first = r.candidates.find((c) => c.suggested) ?? r.candidates[0]
-    setExe(first?.path ?? '')
+    // Never preselect an exe that is not a confident suggestion.
+    setExe(r.candidates.find((c) => c.suggested)?.path ?? '')
     setName(r.suggestedName)
     if (!r.candidates.length) setError(t('library.add.noExecutables'))
     setStep('form')

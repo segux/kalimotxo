@@ -15,6 +15,7 @@ import { join, resolve } from 'path'
 import { CONFIG_FILENAME, getBottleConfig, getBottlePath, saveBottleConfig } from '../bottle'
 import { getActiveWineInstallation } from '../launcher/wineRunner'
 import { installBattlenetVerbs } from '../storeManagers/battlenet/winetricksInstall'
+import { ensureWineAddons, readWineAddons } from '../wine/addons'
 import { setupWineEnvVars } from '../wine/wineEnv'
 import { resolveWineserver } from '../wine/wineserverPath'
 
@@ -105,6 +106,12 @@ function run(bin: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs: num
   })
 }
 
+/** Marker in installed_deps for the add-on versions of the active Wine. */
+function wineAddonsKey(): string | null {
+  const addons = readWineAddons(getActiveWineInstallation())
+  return addons ? `wine-addons-${addons.gecko.version}-${addons.mono.version}` : null
+}
+
 /** `wineboot --init` without blocking the Electron main thread. */
 async function initPrefix(prefix: string): Promise<boolean> {
   const installation = getActiveWineInstallation()
@@ -172,6 +179,23 @@ export async function ensureGamesBottle(
     const [ok, msg] = await installBattlenetVerbs(GAMES_BOTTLE, missing, log)
     if (!ok) return [false, msg]
   }
+  // Gecko/Mono were disabled while creating the prefix (their install prompt
+  // blocked wineboot), which also skipped registering mshtml: add them now.
+  const addonsKey = wineAddonsKey()
+  if (addonsKey && !getBottleConfig(GAMES_BOTTLE).installed_deps.includes(addonsKey)) {
+    onPhase?.('deps')
+    try {
+      const added = await ensureWineAddons(prefix, getActiveWineInstallation(), log)
+      const cfg = getBottleConfig(GAMES_BOTTLE)
+      cfg.installed_deps = [...cfg.installed_deps, addonsKey]
+      saveBottleConfig(GAMES_BOTTLE, cfg)
+      if (added.length) log(`Installed ${added.join(', ')}`)
+    } catch (e) {
+      // Not fatal: most games run without them; retried on the next setup.
+      log(`Warning: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   // Wine creates the Windows user profile (and its links to the Mac's folders)
   // the first time a program runs, i.e. during the steps above.
   const isolated = isolateUserFolders(prefix)

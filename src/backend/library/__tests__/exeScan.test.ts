@@ -27,7 +27,7 @@ function put(rel: string, content: string | Buffer): string {
 }
 
 describe('snapshotExes + rankExeCandidates', () => {
-  it('returns only the executables the installer added, game first', () => {
+  it('returns only the executables the installer added, game first, no installers', () => {
     put('windows/system32/notepad.exe', 'x')
     put('Program Files/Old/old.exe', 'x')
     const before = snapshotExes(driveC)
@@ -42,20 +42,19 @@ describe('snapshotExes + rankExeCandidates', () => {
     const ranked = rankExeCandidates(before, after, driveC)
     expect(ranked.map((c) => c.label)).toEqual([
       join('GOG Games', 'Cool Game', 'CoolGame.exe'),
-      join('GOG Games', 'Cool Game', 'tools', 'editor.exe'),
-      join('GOG Games', 'Cool Game', '_redist', 'vc_redist.x64.exe'),
-      join('GOG Games', 'Cool Game', 'unins000.exe')
+      join('GOG Games', 'Cool Game', 'tools', 'editor.exe')
     ])
     expect(ranked[0]!.suggested).toBe(true)
     expect(ranked.filter((c) => c.suggested)).toHaveLength(1)
   })
 
-  it('suggests nothing when only helpers were added', () => {
+  it('proposes nothing when only installers were added (e.g. a downloader)', () => {
     const before = snapshotExes(driveC)
     put('Game/unins000.exe', 'x')
-    const ranked = rankExeCandidates(before, snapshotExes(driveC), driveC)
-    expect(ranked).toHaveLength(1)
-    expect(ranked[0]!.suggested).toBe(false)
+    put('diablo2/D2-1.14b-Installer-enUS/Installer.exe', 'x')
+    put('diablo2/D2-1.14b-Installer-enUS/DirectX/DXSETUP.exe', 'x')
+    put('Downloads/Downloader_Diablo2_enUS.exe', 'x')
+    expect(rankExeCandidates(before, snapshotExes(driveC), driveC)).toEqual([])
   })
 })
 

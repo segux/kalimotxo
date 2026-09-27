@@ -54,7 +54,7 @@
       "phase": {
         "idle": "Preparazione…",
         "bottle": "Preparazione del bottle dei giochi…",
-        "deps": "Installazione di Visual C++ e DirectX (solo la prima volta)…",
+        "deps": "Preparazione dei componenti Windows (solo la prima volta)…",
         "installer": "Installer in corso: completalo nella sua finestra",
         "scanning": "Ricerca del gioco installato…",
         "done": "Installazione completata",
@@ -68,7 +68,8 @@
       "dxmt": "DX11",
       "d3dmetal": "DX12",
       "wined3d": "DX9"
-    }
+    },
+    "changeExe": "Cambia eseguibile"
   },
   "downloads": {
     "title": "Download",

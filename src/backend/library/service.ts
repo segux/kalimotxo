@@ -147,13 +147,18 @@ export async function installFromInstaller(installerPath: string): Promise<Libra
 
     // Run a copy from inside the bottle: downloaders (e.g. Blizzard's) keep
     // their data next to the exe, which in ~/Downloads needs a macOS privacy
-    // permission; denying it made the download fail.
+    // permission; denying it made the download fail. An installer already in
+    // the bottle (e.g. the one a downloader fetched) runs in place, next to its
+    // data files.
+    const insideBottle = !relative(driveC, installerPath).startsWith('..')
     const stamp = String(Date.now())
-    const staging = join(driveC, STAGING_DIR, stamp)
-    mkdirSync(staging, { recursive: true })
+    const staging = insideBottle ? dirname(installerPath) : join(driveC, STAGING_DIR, stamp)
     const installerName = basename(installerPath)
     const staged = join(staging, installerName)
-    copyFileSync(installerPath, staged)
+    if (!insideBottle) {
+      mkdirSync(staging, { recursive: true })
+      copyFileSync(installerPath, staged)
+    }
 
     isolateUserFolders(getBottlePath(GAMES_BOTTLE))
     setInstallProgress('installer', 'Installer running — complete it in its window')
@@ -162,7 +167,7 @@ export async function installFromInstaller(installerPath: string): Promise<Libra
     const proc = runExe(GAMES_BOTTLE, isMsi ? 'msiexec' : staged, {
       env,
       cwd: staging,
-      args: isMsi ? ['/i', `C:\\${STAGING_DIR}\\${stamp}\\${installerName}`] : [],
+      args: isMsi ? ['/i', `C:\\${relative(driveC, staged).split(sep).join('\\')}`] : [],
       logPath: INSTALL_LOG
     })
     // The installer's own process first (Wine can take seconds to start under
@@ -235,8 +240,15 @@ export function addGame(input: AddLibraryGameInput): OpResult & { game?: Library
 }
 
 export function updateGame(id: string, patch: UpdateLibraryGameInput): OpResult {
-  const clean: UpdateLibraryGameInput = {}
+  const clean: UpdateLibraryGameInput & { bottle?: string } = {}
   if (patch.name !== undefined && patch.name.trim()) clean.name = patch.name.trim()
+  if (patch.exe !== undefined) {
+    if (!/\.exe$/i.test(patch.exe) || !existsSync(patch.exe)) {
+      return { success: false, message: 'Select the game .exe file' }
+    }
+    clean.exe = patch.exe
+    clean.bottle = bottleForExe(patch.exe)
+  }
   if (patch.backend) clean.backend = patch.backend
   if (patch.args) clean.args = patch.args.filter(Boolean)
   const game = updateLibraryGameRecord(id, clean)

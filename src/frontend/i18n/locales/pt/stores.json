@@ -54,7 +54,7 @@
       "phase": {
         "idle": "A preparar…",
         "bottle": "A preparar o bottle de jogos…",
-        "deps": "A instalar Visual C++ e DirectX (só na primeira vez)…",
+        "deps": "A preparar componentes do Windows (só na primeira vez)…",
         "installer": "Instalador em curso: conclua-o na sua janela",
         "scanning": "A procurar o jogo instalado…",
         "done": "Instalação concluída",
@@ -68,7 +68,8 @@
       "dxmt": "DX11",
       "d3dmetal": "DX12",
       "wined3d": "DX9"
-    }
+    },
+    "changeExe": "Alterar executável"
   },
   "downloads": {
     "title": "Transferências",

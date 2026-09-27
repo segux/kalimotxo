@@ -19,12 +19,14 @@ export function GameSettingsDialog({
   const [name, setName] = useState(game.name)
   const [backend, setBackend] = useState<LibraryGraphicsBackend>(game.backend)
   const [args, setArgs] = useState(game.args.join(' '))
+  const [exe, setExe] = useState(game.exe)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const save = async (): Promise<void> => {
     const r = await window.api.libraryUpdateGame(game.id, {
       name,
+      exe: exe !== game.exe ? exe : undefined,
       backend,
       args: args.split(/\s+/).filter(Boolean)
     })
@@ -66,11 +68,23 @@ export function GameSettingsDialog({
           onChange={setArgs}
           placeholder="-dx11 -windowed"
         />
-        <div className="rounded-lg bg-black/30 px-3 py-2 text-xs text-white/40">
-          <p className="truncate" title={game.exe}>
-            {game.exe}
-          </p>
-          <p className="mt-1">{t('library.bottle', { bottle: game.bottle })}</p>
+        <div className="flex items-start gap-2 rounded-lg bg-black/30 px-3 py-2 text-xs text-white/40">
+          <div className="min-w-0 flex-1">
+            <p className="truncate" title={exe}>
+              {exe}
+            </p>
+            <p className="mt-1">{t('library.bottle', { bottle: game.bottle })}</p>
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0 px-2 py-1 text-xs"
+            onClick={async () => {
+              const path = await window.api.libraryPickFile('exe')
+              if (path) setExe(path)
+            }}
+          >
+            {t('library.changeExe')}
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">

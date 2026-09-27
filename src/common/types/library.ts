@@ -59,6 +59,7 @@ export interface AddLibraryGameInput {
 
 export interface UpdateLibraryGameInput {
   name?: string
+  exe?: string
   backend?: LibraryGraphicsBackend
   args?: string[]
 }
