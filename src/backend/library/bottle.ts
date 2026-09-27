@@ -1,6 +1,16 @@
 import { spawn } from 'child_process'
-import { existsSync, rmSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync
+} from 'fs'
+import { homedir } from 'os'
+import { join, resolve } from 'path'
 
 import { CONFIG_FILENAME, getBottleConfig, getBottlePath, saveBottleConfig } from '../bottle'
 import { getActiveWineInstallation } from '../launcher/wineRunner'
@@ -36,6 +46,46 @@ const GAMES_BOTTLE_REGISTRY = [
 
 /** Runtimes most PC games expect; installed once when the bottle is created. */
 const GAMES_BOTTLE_DEPS = ['vcrun2022', 'd3dcompiler_47'] as const
+
+/** Wine links these Windows user folders to the Mac's own by default. */
+const LINKED_USER_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos', 'Templates']
+
+/**
+ * Turns the bottle's links to the Mac's home folders (Documents, Downloads…)
+ * into plain folders inside the bottle. Games then keep their files in the
+ * bottle, and macOS never prompts Kalimotxo for access to personal folders;
+ * a denied prompt made installers fail. The marker file keeps the folder
+ * non-empty so Wine does not turn it back into a link on a prefix update.
+ */
+export function isolateUserFolders(prefix: string): string[] {
+  const usersDir = join(prefix, 'drive_c', 'users')
+  const home = homedir()
+  const changed: string[] = []
+  let users: string[] = []
+  try {
+    users = readdirSync(usersDir)
+  } catch {
+    return changed
+  }
+  for (const user of users) {
+    for (const folder of LINKED_USER_FOLDERS) {
+      const p = join(usersDir, user, folder)
+      try {
+        if (!lstatSync(p).isSymbolicLink()) continue
+        const target = resolve(join(usersDir, user), readlinkSync(p))
+        if (!target.startsWith(home + '/') && target !== home) continue
+        // unlink, not rm: rm follows a link to a directory and fails.
+        unlinkSync(p)
+        mkdirSync(p)
+        writeFileSync(join(p, '.kalimotxo'), 'Kept inside the Kalimotxo bottle.\n')
+        changed.push(`${user}/${folder}`)
+      } catch {
+        /* missing or not a link */
+      }
+    }
+  }
+  return changed
+}
 
 export function isGamesBottleReady(): boolean {
   const prefix = getBottlePath(GAMES_BOTTLE)
@@ -122,5 +172,9 @@ export async function ensureGamesBottle(
     const [ok, msg] = await installBattlenetVerbs(GAMES_BOTTLE, missing, log)
     if (!ok) return [false, msg]
   }
+  // Wine creates the Windows user profile (and its links to the Mac's folders)
+  // the first time a program runs, i.e. during the steps above.
+  const isolated = isolateUserFolders(prefix)
+  if (isolated.length) log(`Isolated user folders from the Mac: ${isolated.join(', ')}`)
   return [true, 'Games bottle ready']
 }

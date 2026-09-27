@@ -1,6 +1,14 @@
 import { spawn, type ChildProcess } from 'child_process'
-import { appendFileSync, existsSync, mkdirSync, statSync, writeFileSync } from 'fs'
-import { dirname, join, relative, sep } from 'path'
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'fs'
+import { basename, dirname, join, relative, sep } from 'path'
 
 import { getBottlePath, listBottles } from '../bottle'
 import { BOTTLES_DIR, LOGS_DIR } from '../config/paths'
@@ -23,7 +31,7 @@ import type {
   UpdateLibraryGameInput
 } from '../../common/types/library'
 import type { OpResult } from '../../common/types/battlenet'
-import { ensureGamesBottle, GAMES_BOTTLE, isGamesBottleReady } from './bottle'
+import { ensureGamesBottle, GAMES_BOTTLE, isGamesBottleReady, isolateUserFolders } from './bottle'
 import {
   detectGraphicsBackend,
   nameFromExe,
@@ -77,9 +85,8 @@ export function bottleForExe(exe: string): string {
   return GAMES_BOTTLE
 }
 
-function toWindowsPath(unixPath: string): string {
-  return 'Z:' + unixPath.replace(/\//g, '\\')
-}
+/** Where installers are copied inside the bottle while they run. */
+const STAGING_DIR = 'kalimotxo-installers'
 
 /** Resolves when every process in the bottle has exited (`wineserver -w`). */
 function waitForBottleIdle(bottle: string, env: NodeJS.ProcessEnv): Promise<void> {
@@ -138,19 +145,36 @@ export async function installFromInstaller(installerPath: string): Promise<Libra
     const driveC = join(getBottlePath(GAMES_BOTTLE), 'drive_c')
     const before = snapshotExes(driveC)
 
+    // Run a copy from inside the bottle: downloaders (e.g. Blizzard's) keep
+    // their data next to the exe, which in ~/Downloads needs a macOS privacy
+    // permission; denying it made the download fail.
+    const stamp = String(Date.now())
+    const staging = join(driveC, STAGING_DIR, stamp)
+    mkdirSync(staging, { recursive: true })
+    const installerName = basename(installerPath)
+    const staged = join(staging, installerName)
+    copyFileSync(installerPath, staged)
+
+    isolateUserFolders(getBottlePath(GAMES_BOTTLE))
     setInstallProgress('installer', 'Installer running — complete it in its window')
     const env = buildInstallerEnv(GAMES_BOTTLE)
     const isMsi = /\.msi$/i.test(installerPath)
-    runExe(GAMES_BOTTLE, isMsi ? 'msiexec' : installerPath, {
+    const proc = runExe(GAMES_BOTTLE, isMsi ? 'msiexec' : staged, {
       env,
-      cwd: dirname(installerPath),
-      args: isMsi ? ['/i', toWindowsPath(installerPath)] : [],
+      cwd: staging,
+      args: isMsi ? ['/i', `C:\\${STAGING_DIR}\\${stamp}\\${installerName}`] : [],
       logPath: INSTALL_LOG
     })
-    // Give the installer a moment to start before waiting for the bottle to idle.
-    await new Promise((r) => setTimeout(r, 2_000))
+    // The installer's own process first (Wine can take seconds to start under
+    // Rosetta, so an early `wineserver -w` would return at once), then any
+    // setup processes it spawned.
+    await new Promise<void>((resolve) => {
+      if (proc.exitCode !== null) resolve()
+      else proc.once('exit', () => resolve())
+    })
     await waitForBottleIdle(GAMES_BOTTLE, env)
     installWaiter = null
+    rmSync(join(driveC, STAGING_DIR), { recursive: true, force: true })
     if (installCancelled) {
       setInstallProgress('idle', 'Installation cancelled')
       return {
@@ -260,6 +284,8 @@ export async function launchGame(id: string): Promise<OpResult> {
   }
   purgeBrokenWinetempSymlinks(log)
 
+  // Only the shared Games bottle is isolated; bottles like Battle.net keep theirs.
+  if (game.bottle === GAMES_BOTTLE) isolateUserFolders(getBottlePath(GAMES_BOTTLE))
   const env = buildLibraryGameEnv(game.bottle, game.backend)
   log(`Bottle: ${game.bottle} | backend: ${game.backend} | args: ${game.args.join(' ')}`)
   log(`Overrides: ${env.WINEDLLOVERRIDES ?? ''}`)
