@@ -28,7 +28,7 @@ const datPath = process.argv[2]
 const listenPort = Number(process.argv[3]) || 1120
 const CONNECT_RETRY_MS = 250
 const CONNECT_DEADLINE_MS = 10000
-const IDLE_CHECK_MS = 15000
+const IDLE_CHECK_MS = Number(process.env.KALIMOTXO_BRIDGE_IDLE_CHECK_MS) || 15000
 const IDLE_CHECKS_BEFORE_EXIT = 4
 
 function agentPort() {
@@ -77,11 +77,14 @@ let idleChecks = 0
 setInterval(() => {
   let out = ''
   try {
-    out = execFileSync('ps', ['-axo', 'command='], { encoding: 'utf8', timeout: 3000 })
+    out = execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8', timeout: 3000 })
   } catch (e) {
     return
   }
-  if (/Battle\.net\.exe|ProgramData[\\/]Battle\.net[\\/]/i.test(out)) idleChecks = 0
+  // Match the Wine processes only. Our own command line contains the
+  // ProgramData/Battle.net path (Agent.dat), so matching paths kept us alive.
+  const others = out.split('\n').filter((l) => parseInt(l, 10) !== process.pid)
+  if (others.some((l) => /Battle\.net\.exe|Agent\.exe/i.test(l))) idleChecks = 0
   else if (++idleChecks >= IDLE_CHECKS_BEFORE_EXIT) process.exit(0)
 }, IDLE_CHECK_MS)
 `

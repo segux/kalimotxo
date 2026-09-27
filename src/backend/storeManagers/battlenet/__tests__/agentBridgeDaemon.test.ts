@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'child_process'
+import { execFileSync, spawn, type ChildProcess } from 'child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import net from 'net'
 import { tmpdir } from 'os'
@@ -81,5 +81,23 @@ describe('detached Agent bridge daemon', () => {
     writeFileSync(datPath, String((echo.address() as net.AddressInfo).port))
 
     expect(await reply).toBe('hello')
+  }, 10_000)
+
+  it('exits when no Battle.net process is left, despite its own Battle.net path', async () => {
+    // With a real Battle.net open the daemon rightly stays alive.
+    if (/Battle\.net\.exe|Agent\.exe/i.test(execFileSync('ps', ['-axo', 'command='], { encoding: 'utf8' }))) {
+      return
+    }
+    const script = join(dir, 'agent-bridge.cjs')
+    writeFileSync(script, AGENT_BRIDGE_DAEMON_SOURCE)
+    // Same shape as production: the Agent.dat path contains ProgramData/Battle.net.
+    const datPath = join(dir, 'drive_c', 'ProgramData', 'Battle.net', 'Agent.dat')
+    const listenPort = await freePort()
+    daemon = spawn(process.execPath, [script, datPath, String(listenPort)], {
+      stdio: 'ignore',
+      env: { ...process.env, KALIMOTXO_BRIDGE_IDLE_CHECK_MS: '100' }
+    })
+    const code = await new Promise<number | null>((resolve) => daemon!.once('exit', resolve))
+    expect(code).toBe(0)
   }, 10_000)
 })
