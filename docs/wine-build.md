@@ -68,3 +68,13 @@ La receta está adaptada de [mikaelhug/Silo](https://github.com/mikaelhug/Silo) 
 - Librerías empaquetadas: cada una conserva su licencia (gnutls, nettle y gmp: LGPL; freetype:
   FTL/GPL-2; SDL2: zlib; MoltenVK: Apache 2.0).
 - Kalimotxo no redistribuye D3DMetal.
+
+## DXMT y el Wine de Kalimotxo
+
+Wine busca sus DLL builtin primero en su propio `lib/wine` y solo después en `WINEDLLPATH`, y
+descarta las DLL builtin que encuentre en otro sitio (system32, carpeta del juego). Por eso DXMT
+en `WINEDLLPATH` no sustituía a `d3d11`/`dxgi`: D2R acababa en wined3d (Vulkan → MoltenVK) y se
+cerraba al entrar en partida (`MVKBufferView::getMTLTexture`). Los juegos con capa DXMT se lanzan
+con una copia del Wine activo hecha con enlaces duros (`runtime/wine-dxmt/<id>`, sin ocupar disco)
+que lleva las DLL de DXMT en su `lib/wine`; Battle.net y el resto de juegos siguen con el Wine
+original. Se regenera sola si cambia el Wine o DXMT. Ver `src/backend/wine/dxmtWine.ts`.

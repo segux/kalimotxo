@@ -18,6 +18,7 @@ import { logInfo } from '../logger'
 import { BATTLENET_BOTTLE } from '../storeManagers/battlenet/constants'
 import { listInstalledBlizzardGames } from '../storeManagers/battlenet/games'
 import { killWineServersForBottle } from '../wine/wineServerKill'
+import { ensureDxmtWine } from '../wine/dxmtWine'
 import {
   ensureBattleNetWineRuntimeLibs,
   purgeBrokenWinetempSymlinks
@@ -299,13 +300,18 @@ export async function launchGame(id: string): Promise<OpResult> {
   // Only the shared Games bottle is isolated; bottles like Battle.net keep theirs.
   if (game.bottle === GAMES_BOTTLE) isolateUserFolders(getBottlePath(GAMES_BOTTLE))
   const env = buildLibraryGameEnv(game.bottle, game.backend)
+  // DXMT only takes over d3d11/dxgi from Wine's own lib dir (see dxmtWine.ts).
+  const dxmtWine =
+    game.backend === 'dxmt' ? ensureDxmtWine(getActiveWineInstallation(), log) : null
   log(`Bottle: ${game.bottle} | backend: ${game.backend} | args: ${game.args.join(' ')}`)
+  log(`Wine binary: ${dxmtWine?.bin ?? getActiveWineInstallation().bin}`)
   log(`Overrides: ${env.WINEDLLOVERRIDES ?? ''}`)
   const proc = runExe(game.bottle, game.exe, {
     env,
     cwd: dirname(game.exe),
     args: game.args,
-    logPath
+    logPath,
+    wine: dxmtWine?.bin
   })
   running.set(id, proc)
   const startedAt = Date.now()

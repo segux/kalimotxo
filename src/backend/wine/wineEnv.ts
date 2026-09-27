@@ -195,6 +195,8 @@ export function applyMacGameStack(
 
   // CRITICAL: DXMT as a Wine builtin DLL via WINEDLLPATH (not loose copies in
   // syswow64). Without this the CEF renderer dies with a fatal GPU error.
+  // Note: WINEDLLPATH is searched AFTER Wine's own lib/wine, so this does not
+  // replace Wine's d3d11/dxgi. DXMT games run on the DXMT Wine (dxmtWine.ts).
   const dxmtDirs: string[] = []
   if (wineExt) {
     for (const sub of ['i386-windows', 'x86_64-windows']) {

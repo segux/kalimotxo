@@ -19,6 +19,7 @@ import { getBottlePath } from '../../bottle'
 import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
+import { ensureDxmtWine } from '../../wine/dxmtWine'
 import { ensureAgentBridge } from './agentBridgeDaemon'
 import { resolveProfileDllOverrides } from './gameDefaults'
 import { markGameManaged, markPidManaged } from './gameWatcher'
@@ -239,10 +240,22 @@ export async function launchBlizzardGame(
   // Mark this process as Kalimotxo-managed so the gameWatcher ignores it
   gameEnv.KALIMOTXO_MANAGED = '1'
 
+  // DXMT only replaces Wine's d3d11/dxgi when it lives in Wine's own lib dir:
+  // run the game on the DXMT flavour of the active Wine (see dxmtWine.ts).
+  const dxmtWine = profile?.backend === 'dxmt' ? ensureDxmtWine(installation, log) : null
+
   const exeName = exe.split(/[/\\]/).pop() ?? 'game.exe'
   log(`Launching ${exeName} (${gameId}) with backend ${profile?.backend ?? 'default'}...`)
+  log(`Wine binary: ${dxmtWine?.bin ?? installation.bin}`)
   log(`Overrides: ${gameEnv.WINEDLLOVERRIDES ?? '(none)'}`)
-  const proc = runExe(BATTLENET_BOTTLE, exe, { battleNetEnv: true, gameLaunch: true, logPath, env: gameEnv, args: profile?.args })
+  const proc = runExe(BATTLENET_BOTTLE, exe, {
+    battleNetEnv: true,
+    gameLaunch: true,
+    logPath,
+    env: gameEnv,
+    args: profile?.args,
+    wine: dxmtWine?.bin
+  })
 
   // Prevent the watcher from killing this newly launched game:
   // - markGameManaged: cooldown by gameId (the Wine loader PID != D2R.exe child PID)
