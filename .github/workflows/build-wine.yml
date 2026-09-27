@@ -196,7 +196,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" "$TAG.tar.xz" "$TAG.tar.xz.sha512sum" \
-            --title "Wine CrossOver ${CX_VERSION}" \
-            --notes "Wine built from CodeWeavers' CrossOver ${CX_VERSION} LGPL sources for Kalimotxo (x86_64, runs under Rosetta). Free software only — see SOURCE.md inside the archive." \
+          # Ship the exact corresponding source with the binaries (LGPL).
+          cp crossover-sources.tar.gz "crossover-sources-${CX_VERSION}.tar.gz"
+          gh release create "$TAG" "$TAG.tar.xz" "$TAG.tar.xz.sha512sum" "crossover-sources-${CX_VERSION}.tar.gz" \
+            --title "Kalimotxo Wine ${CX_VERSION} (built from CrossOver sources)" \
+            --notes "Wine engine downloaded automatically by Kalimotxo; you do not need to install it by hand. Built by this repository's CI from CodeWeavers' CrossOver ${CX_VERSION} LGPL sources, unmodified (x86_64, runs under Rosetta). Free software only, no Apple components. The corresponding source is attached. Not affiliated with CodeWeavers; CrossOver is their trademark." \
             --latest=false
