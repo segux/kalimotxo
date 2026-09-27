@@ -42,6 +42,7 @@
     "icon:export": "node scripts/export-app-icon.mjs",
     "predist:mac": "node scripts/export-app-icon.mjs && node scripts/dmg-background.mjs",
     "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:local": "node scripts/dist-local.mjs",
     "fetch:tools": "node scripts/sync-bundled-tools.mjs",
     "postinstall": "node scripts/sync-bundled-tools.mjs",
     "cli:repair": "node scripts/repair-runtime.mjs",
