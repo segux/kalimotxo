@@ -1,3 +1,11 @@
+## [0.3.1](https://github.com/segux/kalimotxo/compare/v0.3.0...v0.3.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **wine:** download the Wine build, not the attached source tarball ([88163d9](https://github.com/segux/kalimotxo/commit/88163d9a282e48d7db6a48daa70cfc8d6f20bc8a))
+* **wine:** stop depending on the CrossOver app ([b48f7a5](https://github.com/segux/kalimotxo/commit/b48f7a54ca3f64fe5544c4430e7a3aefb11d1795))
+
 # [0.3.0](https://github.com/segux/kalimotxo/compare/v0.2.1...v0.3.0) (2026-09-26)
 
 
