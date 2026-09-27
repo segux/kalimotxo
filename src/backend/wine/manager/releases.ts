@@ -16,11 +16,22 @@ function versionName(wineType: string, tag: string): string {
 
 function pickAssets(
   wineType: string,
-  assets: { name: string; browser_download_url: string; size: number }[]
+  assets: { name: string; browser_download_url: string; size: number }[],
+  tag = ''
 ): { download: string; downsize: number; checksum: string } {
   let download = ''
   let downsize = 0
   let checksum = ''
+  if (wineType === 'Wine-BattleNet') {
+    // Our releases also attach the CrossOver source tarball: pick the build by name.
+    const build = assets.find((a) => a.name === `${tag}.tar.xz`)
+    const sum = assets.find((a) => a.name === `${tag}.tar.xz.sha512sum`)
+    return {
+      download: build?.browser_download_url ?? '',
+      downsize: build?.size ?? 0,
+      checksum: sum?.browser_download_url ?? ''
+    }
+  }
   if (wineType === 'Wine-Staging-macOS') {
     const staging = assets.find((a) => a.name.toLowerCase().includes('staging'))
     if (staging) {
@@ -66,7 +77,8 @@ export async function fetchRepositoryReleases(
       if (repo.id === 'wine-battlenet' && !tag.startsWith(BATTLENET_WINE_TAG_PREFIX)) continue
       const { download, downsize, checksum } = pickAssets(
         repo.typeLabel,
-        release.assets ?? []
+        release.assets ?? [],
+        tag
       )
       if (!download) continue
       releases.push({

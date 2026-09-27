@@ -21,7 +21,12 @@ describe('fetchRepositoryReleases (Battle.net Wine)', () => {
         {
           tag_name: 'wine-cx-26.1.0',
           published_at: '2026-09-27T00:00:00Z',
-          assets: [asset('wine-cx-26.1.0.tar.xz'), asset('wine-cx-26.1.0.tar.xz.sha512sum')]
+          // The source tarball comes first on purpose: it must not be picked.
+          assets: [
+            asset('crossover-sources-26.1.0.tar.gz'),
+            asset('wine-cx-26.1.0.tar.xz'),
+            asset('wine-cx-26.1.0.tar.xz.sha512sum')
+          ]
         }
       ]
     }) as unknown as typeof fetch
