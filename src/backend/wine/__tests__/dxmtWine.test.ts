@@ -32,6 +32,7 @@ describe('buildDxmtWine', () => {
     dest = join(root, 'out')
     write(join(wine, 'bin', 'wine'), 'loader')
     write(join(wine, 'lib', 'wine', 'x86_64-unix', 'ntdll.so'), 'ntdll')
+    write(join(wine, 'lib', 'wine', 'x86_64-unix', 'wine'), 'unix loader')
     write(join(wine, 'lib', 'wine', 'x86_64-windows', 'd3d11.dll'), 'wine d3d11')
     write(join(wine, 'lib', 'wine', 'x86_64-windows', 'dxgi.dll'), 'wine dxgi')
     write(join(wine, 'lib', 'wine', 'i386-windows', 'd3d11.dll'), 'wine d3d11 32')
@@ -59,8 +60,15 @@ describe('buildDxmtWine', () => {
       'dxmt i386-windows dxgi.dll'
     )
     expect(readFileSync(join(lib, 'x86_64-unix', 'winemetal.so'), 'utf-8')).toBe('dxmt winemetal.so')
-    // The rest of Wine is hard-linked, not copied, and symlinks stay symlinks.
-    expect(statSync(join(dest, 'bin', 'wine')).ino).toBe(statSync(join(wine, 'bin', 'wine')).ino)
+    // The rest of Wine is hard-linked, and symlinks stay symlinks...
+    const ntdll = join('lib', 'wine', 'x86_64-unix', 'ntdll.so')
+    expect(statSync(join(dest, ntdll)).ino).toBe(statSync(join(wine, ntdll)).ino)
+    // ...but the loaders are real copies: CrossOver keys its winetemp dir (and
+    // the ntdll.so it links there) on the loader's inode/size/mtime.
+    for (const loader of [join('bin', 'wine'), join('lib', 'wine', 'x86_64-unix', 'wine')]) {
+      expect(statSync(join(dest, loader)).ino).not.toBe(statSync(join(wine, loader)).ino)
+      expect(readFileSync(join(dest, loader), 'utf-8')).toBe(readFileSync(join(wine, loader), 'utf-8'))
+    }
     expect(lstatSync(join(dest, 'bin', 'wine64')).isSymbolicLink()).toBe(true)
 
     expect(readFileSync(join(wine, 'lib', 'wine', 'x86_64-windows', 'd3d11.dll'), 'utf-8')).toBe(

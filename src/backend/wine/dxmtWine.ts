@@ -100,21 +100,39 @@ function signature(wineRoot: string, wineBin: string, dxmtRoot: string): string 
   const dxmt = Object.entries(DXMT_FILES).flatMap(([sub, names]) =>
     names.map((n) => `${sub}/${n}=${fileSig(join(dxmtRoot, sub, n))}`)
   )
-  return JSON.stringify({ wineRoot, wine: fileSig(wineBin), dxmtRoot, dxmt, unix })
+  return JSON.stringify({ v: 2, wineRoot, wine: fileSig(wineBin), dxmtRoot, dxmt, unix })
 }
 
-/** Hard-links `src` into `dest` (copying across volumes), keeping symlinks as they are. */
-function mirrorTree(src: string, dest: string): void {
+/**
+ * CrossOver's Wine starts each process from `$TMPDIR/winetemp-<id>-<size>-<mtime>`,
+ * named after its loader binary, holding a link to the `ntdll.so` it was first
+ * started with. A hard-linked loader has the same inode, size and mtime as the
+ * original, so the mirror reused the original's winetemp dir and loaded the
+ * original `ntdll.so` (and with it Wine's own d3d11/dxgi). The loaders (`bin/`
+ * and the executables in `lib/wine/x86_64-unix`) are copied instead.
+ */
+function mustCopy(rel: string): boolean {
+  if (rel.startsWith('bin/')) return true
+  return rel.startsWith('lib/wine/x86_64-unix/') && !/\.(so|dylib)$/.test(rel)
+}
+
+/** Hard-links `src` into `dest` (copying loaders and across volumes), keeping symlinks. */
+function mirrorTree(src: string, dest: string, rel = ''): void {
   mkdirSync(dest, { recursive: true })
   for (const name of readdirSync(src)) {
     const from = join(src, name)
     const to = join(dest, name)
+    const relPath = rel ? `${rel}/${name}` : name
     const st = lstatSync(from)
     if (st.isSymbolicLink()) {
       symlinkSync(readlinkSync(from), to)
     } else if (st.isDirectory()) {
-      mirrorTree(from, to)
+      mirrorTree(from, to, relPath)
     } else if (st.isFile()) {
+      if (mustCopy(relPath)) {
+        copyFileSync(from, to)
+        continue
+      }
       try {
         linkSync(from, to)
       } catch {
