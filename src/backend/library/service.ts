@@ -18,7 +18,7 @@ import { logInfo } from '../logger'
 import { BATTLENET_BOTTLE } from '../storeManagers/battlenet/constants'
 import { listInstalledBlizzardGames } from '../storeManagers/battlenet/games'
 import { killWineServersForBottle } from '../wine/wineServerKill'
-import { ensureDxmtForExe } from '../wine/dxmt'
+import { ensureDxmtForExe, removeStaleDxmtNextToExe } from '../wine/dxmt'
 import {
   ensureBattleNetWineRuntimeLibs,
   purgeBrokenWinetempSymlinks
@@ -41,6 +41,7 @@ import {
   snapshotExes
 } from './exeScan'
 import {
+  applyCncDdrawDefaults,
   applyLegacyEngineAppDefaults,
   applyWined3dGlAppDefaults,
   buildInstallerEnv,
@@ -307,12 +308,15 @@ export async function launchGame(id: string): Promise<OpResult> {
   const env = buildLibraryGameEnv(game.bottle, game.backend)
   // DXMT next to the exe, loaded as native (see wine/dxmt.ts).
   if (game.backend === 'dxmt') ensureDxmtForExe(getActiveWineInstallation(), game.exe, log)
+  else removeStaleDxmtNextToExe(game.exe, log)
   // A launcher that spawns the real game as a child (Project Diablo 2's
   // PD2Launcher.exe -> Game.exe) does not pass on WINE_D3D_CONFIG: force the
   // OpenGL renderer via the per-exe registry instead (see gameEnv.ts).
   if (game.backend === 'wined3d-gl') applyWined3dGlAppDefaults(game.bottle, game.exe, log)
   // Diablo II 1.13-era engine (Project Diablo 2 and similar mods): see gameEnv.ts.
   applyLegacyEngineAppDefaults(game.bottle, game.exe, log)
+  // Games shipping cnc-ddraw (see gameEnv.ts).
+  applyCncDdrawDefaults(game.bottle, game.exe, log)
   log(`Bottle: ${game.bottle} | backend: ${game.backend} | args: ${game.args.join(' ')}`)
   log(`Overrides: ${env.WINEDLLOVERRIDES ?? ''}`)
   const proc = runExe(game.bottle, game.exe, {

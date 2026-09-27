@@ -126,6 +126,38 @@ export function installDxmtNextToExe(exe: string, dxmtRoot: string): string[] {
   return changed
 }
 
+/** Whether `file` is one of DXMT's own DLLs (they import winemetal.dll; no game ships that). */
+function importsWinemetal(file: string): boolean {
+  try {
+    return readFileSync(file).includes('winemetal.dll')
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Removes the DXMT DLLs Kalimotxo put next to `exe` when the game no longer
+ * uses DXMT (its graphics layer changed), so Wine's own D3D is not shadowed
+ * by leftovers. Only DXMT's own set is touched: d3d11/dxgi import
+ * winemetal.dll, and d3d10core goes with a DXMT d3d11 (it calls into it).
+ */
+export function removeStaleDxmtNextToExe(exe: string, log?: (m: string) => void): string[] {
+  const dir = dirname(exe)
+  const d3d11 = join(dir, 'd3d11.dll')
+  if (!importsWinemetal(d3d11)) return []
+  const removed: string[] = []
+  for (const dll of DXMT_NATIVE_DLLS) {
+    const file = join(dir, `${dll}.dll`)
+    if (!existsSync(file)) continue
+    if (dll === 'd3d10core' || importsWinemetal(file)) {
+      rmSync(file, { force: true })
+      removed.push(`${dll}.dll`)
+    }
+  }
+  if (removed.length) log?.(`DXMT: removed stale ${removed.join(', ')} next to ${exe.split(/[/\\]/).pop()}`)
+  return removed
+}
+
 /**
  * Makes DXMT available to `exe` (see above). Returns false, logging why, when
  * DXMT is not installed or the Wine layout is unknown: the game then runs on

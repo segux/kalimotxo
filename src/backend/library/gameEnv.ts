@@ -1,5 +1,5 @@
 import { spawnSync } from 'child_process'
-import { readdirSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 
 import { getBottleConfig, getBottlePath } from '../bottle'
@@ -142,6 +142,88 @@ export function applyLegacyEngineAppDefaults(
   }
   if (!importReg(bottle, lines, 'kalimotxo-legacy-engine.reg', log)) return false
   log?.(`Diablo II engine: Windows XP version for ${exes.join(', ')}`)
+  return true
+}
+
+const CNC_DDRAW_MARKER = '.kalimotxo-cnc-ddraw'
+
+/** Whether the game's own ddraw.dll is cnc-ddraw (a DirectDraw wrapper many classics ship). */
+function isCncDdraw(file: string): boolean {
+  try {
+    return readFileSync(file).includes('cnc-ddraw')
+  } catch {
+    return false
+  }
+}
+
+/** Replaces renderer=opengl with direct3d9 in a cnc-ddraw ini; returns whether it changed. */
+function cncDdrawIniToD3d9(ini: string): boolean {
+  try {
+    const text = readFileSync(ini, 'utf-8')
+    const next = text.replace(/^(\s*renderer\s*=\s*)opengl\s*$/im, '$1direct3d9')
+    if (next === text) return false
+    writeFileSync(ini, next)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Project Diablo 2's launcher rewrites ddraw.ini from its own settings on every Play. */
+function pd2LauncherSettingsToD3d9(json: string): boolean {
+  try {
+    const cfg = JSON.parse(readFileSync(json, 'utf-8')) as { DdrawOptions?: { Renderer?: string } }
+    if (cfg.DdrawOptions?.Renderer?.toLowerCase() !== 'opengl') return false
+    cfg.DdrawOptions.Renderer = 'direct3d9'
+    writeFileSync(json, JSON.stringify(cfg, null, 2))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Games that ship cnc-ddraw as their own ddraw.dll (Project Diablo 2 among
+ * many classics) need it to actually load: Wine's builtin ddraw otherwise
+ * wins for exes a launcher spawns, and full-screen DirectDraw on macOS then
+ * shows a black or windowed game with the mouse escaping it.
+ * - Per-exe AppDefaults DllOverrides ddraw=native,builtin for every .exe in
+ *   the folder (launchers do not use ddraw, so it is harmless for them).
+ * - cnc-ddraw's OpenGL renderer does not get a usable context on macOS and
+ *   falls back to slow software rendering ("-WARNING- Using slow software
+ *   rendering ... (2.1)"); its Direct3D 9 renderer goes through wined3d and
+ *   is hardware accelerated. Switched once (marker file), so a later choice
+ *   the user makes in the game's own settings is kept.
+ */
+export function applyCncDdrawDefaults(
+  bottle: string,
+  exe: string,
+  log?: (m: string) => void
+): boolean {
+  const dir = dirname(exe)
+  if (!isCncDdraw(join(dir, 'ddraw.dll'))) return false
+
+  let names: string[]
+  try {
+    names = readdirSync(dir).filter((n) => n.toLowerCase().endsWith('.exe'))
+  } catch {
+    return false
+  }
+  const lines: string[] = []
+  for (const name of names) {
+    lines.push(`[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\${name}\\DllOverrides]`, '"ddraw"="native,builtin"', '')
+  }
+  if (lines.length && importReg(bottle, lines, 'kalimotxo-cnc-ddraw.reg', log)) {
+    log?.(`cnc-ddraw: native ddraw for ${names.join(', ')}`)
+  }
+
+  const marker = join(dir, CNC_DDRAW_MARKER)
+  if (!existsSync(marker)) {
+    const ini = cncDdrawIniToD3d9(join(dir, 'ddraw.ini'))
+    const pd2 = pd2LauncherSettingsToD3d9(join(dir, 'AppData', 'launcherSettings.json'))
+    if (ini || pd2) log?.('cnc-ddraw: renderer switched from OpenGL to Direct3D 9')
+    writeFileSync(marker, 'cnc-ddraw renderer defaults applied by Kalimotxo\n')
+  }
   return true
 }
 

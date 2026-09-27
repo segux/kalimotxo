@@ -2,7 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from 'path'
 import { tmpdir } from 'os'
 
-import { asNativeDll, installDxmtNextToExe, installWinemetal, peArchDir } from '../dxmt'
+import {
+  asNativeDll,
+  installDxmtNextToExe,
+  installWinemetal,
+  peArchDir,
+  removeStaleDxmtNextToExe
+} from '../dxmt'
 
 /** Minimal PE: MZ header, builtin marker at 0x40, PE header at 0x80. */
 function pe(machine: number, builtin = true): Buffer {
@@ -66,5 +72,33 @@ describe('dxmt', () => {
     const dll = readFileSync(join(wine, 'lib', 'wine', 'x86_64-windows', 'winemetal.dll'))
     expect(dll.toString('latin1', 0x40, 0x50)).toBe('Wine builtin DLL')
     expect(installWinemetal(wine, dxmt)).toEqual([])
+  })
+})
+
+describe('removeStaleDxmtNextToExe', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'dxmt-stale-'))
+    writeFileSync(join(dir, 'Game.exe'), '')
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('removes the DXMT set (they import winemetal.dll)', () => {
+    writeFileSync(join(dir, 'd3d11.dll'), 'MZ ... winemetal.dll')
+    writeFileSync(join(dir, 'dxgi.dll'), 'MZ ... winemetal.dll')
+    writeFileSync(join(dir, 'd3d10core.dll'), 'MZ ... D3D11CoreCreateDevice')
+    expect(removeStaleDxmtNextToExe(join(dir, 'Game.exe')).sort()).toEqual([
+      'd3d10core.dll',
+      'd3d11.dll',
+      'dxgi.dll'
+    ])
+    expect(existsSync(join(dir, 'd3d11.dll'))).toBe(false)
+  })
+
+  it('never touches a game\'s own D3D DLLs', () => {
+    writeFileSync(join(dir, 'd3d11.dll'), 'MZ some other d3d11')
+    writeFileSync(join(dir, 'd3d10core.dll'), 'MZ game d3d10core')
+    expect(removeStaleDxmtNextToExe(join(dir, 'Game.exe'))).toEqual([])
+    expect(existsSync(join(dir, 'd3d10core.dll'))).toBe(true)
   })
 })
