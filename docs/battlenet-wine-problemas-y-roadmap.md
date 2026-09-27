@@ -331,6 +331,22 @@ Fixes: versión **más reciente** del Agent y sin *downgrade* (comparación por 
 
 ---
 
+## Sesión 2026-09-27: D2R no arranca (DX12), stopgap CrossOver, y `FlsGetValue2` para PD2
+
+**D2R solo habla DirectX 12** (no existe el flag `-dx11`; el perfil de junio forzaba DXMT, que solo traduce DX11 → fallaba directo en «Failed to initialize graphics device»). Se probaron tres vías de DX12, las tres con un fallo real y distinto:
+
+1. **DLLs precompiladas de Apple (GPTK)** renombradas + forwarder junto a `D2R.exe` (ver `d3dmetalDx12.ts`): carga y renderiza los vídeos de intro, pero revienta con un crash nativo (`libc++abi: mutex lock failed`) al empezar el juego real — un mismatch de ABI entre el Wine propio de Kalimotxo y binarios de Apple compilados contra un Wine distinto.
+2. **`d3d12.dll`/`dxgi.dll` propios de Wine** (vkd3d/MoltenVK): mismo punto de crash, pero con una aserción distinta (`vkAllocateDescriptorSets`) dentro de `winevulkan`.
+3. **vkd3d-proton** (capa DX12→Vulkan de Steam/Proton, sin binarios de Apple): la MISMA aserción `vkAllocateDescriptorSets`, en el mismo fichero de Wine — confirma que el fallo está en el propio `winevulkan` de Wine, no en la capa DX12 que se use.
+
+CrossOver real (26.3, instalado aparte) SÍ funciona de punta a punta (login, Jugar, juego). Mezclar el Wine de CrossOver con el bottle propio de Kalimotxo no sirve (cuelga antes de cargar `winemac.drv`, un Wine ajeno no arranca bien contra un bottle que no creó él). Stopgap: botón **«Abrir con CrossOver»** en el panel de Battle.net (`crossoverBottle.ts`), que abre Battle.net en el bottle de CrossOver ya existente del usuario (login e instalación de D2R totalmente separados de los de Kalimotxo). Pendiente: diagnosticar con más profundidad qué hace CrossOver distinto a nivel de Wine para evitar este bug de `winevulkan`.
+
+**Project Diablo 2 (mod de D2 clásico) no arrancaba tampoco**, por dos bugs sin relación con lo anterior:
+- El backend `wined3d-gl` fijaba `WINE_D3D_CONFIG=renderer=gl` por variable de entorno, pero `PD2Launcher.exe` lanza `Game.exe` como proceso hijo y la variable no llega — `gameEnv.ts` ahora también escribe el registro `HKCU\Software\Wine\AppDefaults\<exe>\Direct3D` (`renderer=gl`) para cada `.exe` de la carpeta del juego, que Wine sí respeta por proceso sin depender de la herencia de entorno.
+- `Game.exe` moría con un **stack overflow** dentro de `Fog.dll` justo al arrancar: `PD2_EXT.dll` (la extensión moderna de PD2) usa un runtime C moderno que llama a `FlsGetValue2`, un export que **ni Wine 11 ni CrossOver 26.3 implementan** (comprobado en ambos). Al no encontrarlo, Wine no falla con gracia — provoca el stack overflow. Parche añadido en `scripts/wine/patches/0001-kernelbase-fls-get-value2.patch` (aplicado en `build-wine.yml` antes de compilar): implementa `FlsGetValue2` igual que `FlsGetValue` pero sin tocar el último error, que es lo que un runtime moderno espera. Pendiente: publicar una build de Wine con este parche y confirmar que PD2 arranca.
+
+---
+
 ## Matriz rápida: síntoma → causa probable
 
 | Síntoma | Causa probable | Dirección |
