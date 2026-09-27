@@ -70,6 +70,19 @@ afterEach(() => {
 })
 
 describe('buildGameAppDefaultsReg', () => {
+  it('keeps d3d12/dxgi native for the D3DMetal DX12 per-exe path', () => {
+    const reg = buildGameAppDefaultsReg([
+      {
+        exe: 'Program Files (x86)/Diablo II Resurrected/D2R.exe',
+        backend: 'd3dmetal-dx12',
+        dll_overrides: { d3d12: 'native', dxgi: 'native', crypt32: 'builtin' }
+      } as unknown as GameProfile
+    ])
+    expect(reg).toContain('"d3d12"="native"')
+    expect(reg).toContain('"dxgi"="native"')
+    expect(reg).toContain('"crypt32"="builtin"')
+  })
+
   it('writes per-exe overrides, loading DXMT native from the game folder', () => {
     const reg = buildGameAppDefaultsReg([
       {

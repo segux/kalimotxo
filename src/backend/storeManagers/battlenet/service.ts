@@ -28,7 +28,12 @@ import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers
 import { ensureBattleNetWineRuntimeLibs, purgeBrokenWinetempSymlinks } from '../../wine/wineRuntimeLibs'
 import { stopAgentPortBridge } from './agentPortBridge'
 import { ensureAgentBridge } from './agentBridgeDaemon'
-import { applyBattleNetLaunchArgs, applyDxmtToInstalledGames, applyGameAppDefaults } from './gameDefaults'
+import {
+  applyBattleNetLaunchArgs,
+  applyD3dmetalDx12ToInstalledGames,
+  applyDxmtToInstalledGames,
+  applyGameAppDefaults
+} from './gameDefaults'
 import { startAgentSupervisor, stopAgentSupervisor } from './agentSupervisor'
 import {
   isAgentRunning,
@@ -38,6 +43,7 @@ import {
   listProcesses
 } from './processes'
 import { startGameWatcher, stopGameWatcher } from './gameWatcher'
+import { startGameOverrideWatchers, stopGameOverrideWatchers } from './gameOverrideWatcher'
 import { resetWineInstallationCache } from '../../launcher/wineRunner'
 import { logInfo } from '../../logger'
 import { sendFrontendMessage } from '../../ipc'
@@ -669,6 +675,21 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     applyBattleNetLaunchArgs(BATTLENET_BOTTLE, log)
     applyGameAppDefaults(BATTLENET_BOTTLE, log)
     applyDxmtToInstalledGames(BATTLENET_BOTTLE, log)
+    try {
+      const { ensureD3dmetalForDx12Games } = await import('../../wine/d3dmetalSetup')
+      ensureD3dmetalForDx12Games()
+    } catch (e) {
+      log(`Warning: could not prepare D3DMetal (DX12): ${String(e)}`)
+    }
+    applyD3dmetalDx12ToInstalledGames(BATTLENET_BOTTLE, log)
+
+    // Battle.net patches/repairs installed games on every launch, silently
+    // restoring the original DLLs the two calls above just replaced (seen on
+    // Diablo II: Resurrected's d3d12.dll, minutes after being fixed and before
+    // the game was ever started). Watch and reapply instead of killing the
+    // game process to reapply (that loses the Battle.net session token — see
+    // gameWatcher.ts). Covers every DXMT/D3DMetal-DX12 profile, not just D2R.
+    startGameOverrideWatchers(BATTLENET_BOTTLE)
 
     const prep = prepareBattleNetWineLaunch(logPath)
     if (!prep.ok) return { success: false, message: prep.message }
@@ -776,6 +797,7 @@ export function cancel(): { success: boolean; message: string } {
   stopBattleNetClientProcesses()
   stopAgentPortBridge()
   stopGameWatcher()
+  stopGameOverrideWatchers()
   stopWineForWinetricks(BATTLENET_BOTTLE)
   installRunning = false
   repairRunning = false

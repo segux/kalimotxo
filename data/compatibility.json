@@ -81,22 +81,19 @@
     "publisher": "Blizzard Entertainment",
     "exe": "Program Files (x86)/Diablo II Resurrected/D2R.exe",
     "bnet_product": "osi",
-    "backend": "dxmt",
+    "backend": "d3dmetal-dx12",
     "sync": "msync",
     "windows_version": "win10",
     "env": {},
     "deps": ["vcrun2019"],
     "dll_overrides": {
-      "d3d11": "builtin",
-      "dxgi": "builtin",
-      "d3d10core": "builtin",
-      "wined3d": "builtin",
+      "d3d12": "native",
+      "dxgi": "native",
       "winegstreamer": "",
       "mf": "",
       "crypt32": "builtin"
     },
-    "args": ["-dx11"],
-    "notes": "Force DX11 via -dx11. d3d11/dxgi/d3d10core=builtin: loads DXMT from WINEDLLPATH. crypt32=builtin: forces Wine's TLS stack (macOS Security framework) for online play.",
+    "notes": "D2R only speaks DirectX 12 (no -dx11 switch exists; an earlier profile forcing DXMT, which only translates DX11, made the game fail at 'Failed to initialize graphics device'). d3d12/dxgi=native: Wine loads Kalimotxo's forwarder DLLs next to D2R.exe, which route to Apple's real D3DMetal (see d3dmetalDx12.ts) instead of Wine's own d3d12.dll (vkd3d/MoltenVK, which D2R's DX12 path does not get along with). crypt32=builtin: forces Wine's TLS stack (macOS Security framework) for online play.",
     "rating": 4
   },
   "starcraft2": {

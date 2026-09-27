@@ -7,6 +7,7 @@ import {
   BLIZZARD_GAME_IDS,
   getGameProfile,
   resolveGameExe,
+  usesAppleD3dmetal,
   type BlizzardGameId
 } from '../../compatibility/catalog'
 
@@ -20,8 +21,10 @@ import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
 import { ensureDxmtForExe } from '../../wine/dxmt'
+import { ensureD3dmetalDx12ForExe } from '../../wine/d3dmetalDx12'
 import { ensureAgentBridge } from './agentBridgeDaemon'
 import { resolveProfileDllOverrides } from './gameDefaults'
+import { startGameOverrideWatchers } from './gameOverrideWatcher'
 import { markGameManaged, markPidManaged } from './gameWatcher'
 import { BATTLENET_BOTTLE, BATTLENET_LAUNCHER_BACKEND } from './constants'
 import { ensureLaunchDependencies } from './deps'
@@ -65,19 +68,16 @@ async function applyGameProfileToBottle(
   const profile = getGameProfile(profileId)
   if (!profile) return [false, `Unknown profile: ${profileId}`]
 
-  const backend = profile.backend as GraphicsBackendId
-
-  // D3DMetal (DX12) games: ensure the framework is available before launch.
-  // DXMT games load their DLLs via WINEDLLPATH — no file copy needed here.
-  if (backend === 'd3dmetal') {
+  // D3DMetal games: framework in the bottle for DYLD_FRAMEWORK_PATH.
+  // d3dmetal-dx12 also needs GPTK's d3d12/dxgi pair (see d3dmetalDx12.ts).
+  if (usesAppleD3dmetal(profile.backend)) {
     let [d3dOk, d3dMsg] = ensureD3dmetalForDx12Games()
     if (!d3dOk) {
       log?.('Installing D3DMetal automatically...')
       ;[d3dOk, d3dMsg] = await ensureD3dmetal({ onLog: log })
     }
     if (!d3dOk) return [false, d3dMsg]
-    // Copy D3DMetal framework into the bottle so DYLD_FRAMEWORK_PATH can find it.
-    const [copyOk, copyMsg] = applyGraphicsBackend(bottleName, backend)
+    const [copyOk, copyMsg] = applyGraphicsBackend(bottleName, 'd3dmetal')
     if (!copyOk) return [false, copyMsg]
     return [true, copyMsg]
   }
@@ -105,12 +105,14 @@ function buildGameLaunchEnv(
   // Start with the standard Battle.net launch environment
   const env = buildBattleNetLaunchEnv(bottleName, { gameLaunch: true })
 
-  // Apply the graphics backend from the profile directly (do not trust bottle.json)
-  applyGraphicsEnv(env, profile.backend as GraphicsBackendId)
+  const graphicsBackend: GraphicsBackendId = usesAppleD3dmetal(profile.backend)
+    ? 'd3dmetal'
+    : (profile.backend as GraphicsBackendId)
+  applyGraphicsEnv(env, graphicsBackend)
 
   // applyGraphicsEnv uses the global D3DMETAL_DIR for d3dmetal. Prefer the
   // local copy inside the bottle if it exists (copied by applyGraphicsBackend).
-  if (profile.backend === 'd3dmetal') {
+  if (usesAppleD3dmetal(profile.backend)) {
     const localD3dmetal = join(getBottlePath(bottleName), 'd3dmetal')
     const d3dmetalFw = join(localD3dmetal, 'D3DMetal.framework')
     const d3dshared = join(localD3dmetal, 'libd3dshared.dylib')
@@ -152,7 +154,7 @@ function buildGameLaunchEnv(
   }
 
   // macOS D3DMetal fix: Heroic enables both msync + esync for toolkit wines
-  if (profile.backend === 'd3dmetal') {
+  if (usesAppleD3dmetal(profile.backend)) {
     env.WINEMSYNC = '1'
     env.WINEESYNC = '1'
   } else if (profile.backend === 'dxmt') {
@@ -181,7 +183,7 @@ export async function launchBlizzardGame(
   }
 
   const profile = getGameProfile(gameId)
-  if (profile?.backend === 'd3dmetal') {
+  if (profile && usesAppleD3dmetal(profile.backend)) {
     const { isD3dmetalInstalled } = await import('../../setup/runtimePaths')
     if (!isD3dmetalInstalled()) {
       log('Installing graphics layer for this game...')
@@ -233,6 +235,7 @@ export async function launchBlizzardGame(
   // Bridge 1120 -> Agent's real port (Agent.dat). Without it the client gets
   // CURL error=7 / BLZBNTBNA00000005. See agentPortBridge.ts.
   await ensureAgentBridge(BATTLENET_BOTTLE)
+  startGameOverrideWatchers(BATTLENET_BOTTLE)
 
   // Build the env directly from the game profile (Heroic-style).
   // Do NOT rely on bottle.json being in the right state.
@@ -248,8 +251,10 @@ export async function launchBlizzardGame(
     log('Graphics debug logging enabled (~/.kalimotxo/debug-graphics)')
   }
 
-  // DXMT next to the exe, loaded as native (see wine/dxmt.ts).
   if (profile?.backend === 'dxmt') ensureDxmtForExe(installation, exe, log)
+  if (profile?.backend === 'd3dmetal-dx12') {
+    ensureD3dmetalDx12ForExe(installation, exe, log)
+  }
 
   const exeName = exe.split(/[/\\]/).pop() ?? 'game.exe'
   log(`Launching ${exeName} (${gameId}) with backend ${profile?.backend ?? 'default'}...`)

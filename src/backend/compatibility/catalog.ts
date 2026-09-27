@@ -45,6 +45,11 @@ export function getGameProfile(id: string): GameProfile | null {
   return loadGameCatalog()[id] ?? null
 }
 
+/** CrossOver-style D3DMetal, including the per-exe GPTK DX12 path (D2R). */
+export function usesAppleD3dmetal(backend: string): boolean {
+  return backend === 'd3dmetal' || backend === 'd3dmetal-dx12'
+}
+
 export function resolveGameExe(
   bottleName: string,
   profileId: string

@@ -12,8 +12,20 @@ import { basename, join } from 'path'
 import { execSync, spawn } from 'child_process'
 
 import { getBundledD3dmetalDir, isBundledD3dmetalPresent } from '../config/bundled'
-import { CACHE_DIR, D3DMETAL_DIR } from '../config/paths'
+import { CACHE_DIR, D3DMETAL_DIR, WINE_DIR } from '../config/paths'
 import { logInfo } from '../logger'
+
+/**
+ * DX12 DLL pair GPTK ships in its own bundled Wine, next to `lib/external`
+ * (real Apple D3DMetal code, "Wine builtin DLL" marked). Used by
+ * `d3dmetalDx12.ts` to run individual DX12-only games (e.g. Diablo II:
+ * Resurrected) through real D3DMetal without touching Wine's own
+ * `d3d12.dll`/`dxgi.dll` builtins, which stay on vkd3d/MoltenVK for everyone
+ * else. See that file for why: two Wines can compile different `d3d12.dll`
+ * builtins from the same open CX sources, and only GPTK's own precompiled
+ * ones carry Apple's real D3DMetal code.
+ */
+const DX12_DLLS = ['d3d12', 'dxgi'] as const
 
 const GPTK_APP_EXTERNAL =
   '/Applications/Game Porting Toolkit.app/Contents/Resources/wine/lib/external'
@@ -40,6 +52,16 @@ export function isD3dmetalRuntimeReady(): boolean {
   )
 }
 
+/** Whether the DX12 DLL pair (see `d3dmetalDx12.ts`) is already imported. */
+export function isD3dmetalDx12Ready(): boolean {
+  const dir = join(D3DMETAL_DIR, 'dx12')
+  return DX12_DLLS.every(
+    (dll) =>
+      existsSync(join(dir, 'x86_64-windows', `${dll}.dll`)) &&
+      existsSync(join(dir, 'x86_64-unix', `${dll}.so`))
+  )
+}
+
 /** Copia D3DMetal.framework + libd3dshared desde lib/external de Game Porting Toolkit. */
 export function installD3dmetalFromExternalDir(externalDir: string): [boolean, string] {
   if (!existsSync(externalDir)) {
@@ -58,6 +80,20 @@ export function installD3dmetalFromExternalDir(externalDir: string): [boolean, s
   if (existsSync(dylibSrc)) {
     copyFileSync(dylibSrc, join(D3DMETAL_DIR, 'libd3dshared.dylib'))
     copied.push('libd3dshared.dylib')
+  }
+
+  // `lib/external` and `lib/wine` are siblings under GPTK's own Wine root.
+  const wineDir = join(externalDir, '..', 'wine')
+  const dx12Dir = join(D3DMETAL_DIR, 'dx12')
+  for (const dll of DX12_DLLS) {
+    const pe = join(wineDir, 'x86_64-windows', `${dll}.dll`)
+    const unix = join(wineDir, 'x86_64-unix', `${dll}.so`)
+    if (!existsSync(pe) || !existsSync(unix)) continue
+    mkdirSync(join(dx12Dir, 'x86_64-windows'), { recursive: true })
+    mkdirSync(join(dx12Dir, 'x86_64-unix'), { recursive: true })
+    copyFileSync(pe, join(dx12Dir, 'x86_64-windows', `${dll}.dll`))
+    copyFileSync(unix, join(dx12Dir, 'x86_64-unix', `${dll}.so`))
+    copied.push(`dx12/${dll}`)
   }
 
   if (!copied.length) {
@@ -129,10 +165,39 @@ function findExternalInTree(root: string): string | null {
 }
 
 export function installD3dmetalFromGptkApp(): [boolean, string] {
-  if (!existsSync(GPTK_APP_EXTERNAL)) {
-    return [false, 'Game Porting Toolkit.app no instalado']
+  if (existsSync(GPTK_APP_EXTERNAL)) {
+    return installD3dmetalFromExternalDir(GPTK_APP_EXTERNAL)
   }
-  return installD3dmetalFromExternalDir(GPTK_APP_EXTERNAL)
+  // Kalimotxo's own Wine manager can also hold a full GPTK copy (imported the
+  // same way as any other Wine, under `runtime/wine/<Type>-latest`) instead
+  // of the app living in /Applications.
+  const managed = findGptkAppUnderWineDir()
+  if (managed) return installD3dmetalFromExternalDir(managed)
+  return [false, 'Game Porting Toolkit.app no instalado']
+}
+
+/** Looks for `Game Porting Toolkit.app` one level under `runtime/wine`. */
+function findGptkAppUnderWineDir(): string | null {
+  let entries: string[]
+  try {
+    entries = readdirSync(WINE_DIR)
+  } catch {
+    return null
+  }
+  for (const name of entries) {
+    const external = join(
+      WINE_DIR,
+      name,
+      'Game Porting Toolkit.app',
+      'Contents',
+      'Resources',
+      'wine',
+      'lib',
+      'external'
+    )
+    if (existsSync(external)) return external
+  }
+  return null
 }
 
 function globDmgsInDir(dir: string, pattern: string): string[] {
@@ -357,23 +422,33 @@ export async function ensureD3dmetal(
   ]
 }
 
-/** Synchronous: fast local sources only (no Homebrew). */
+/**
+ * Synchronous: fast local sources only (no Homebrew). Also tops up the DX12
+ * DLL pair (`dx12/`) for installs done before it was imported, since
+ * `isD3dmetalRuntimeReady` alone would otherwise short-circuit and skip it.
+ */
 export function ensureD3dmetalForDx12Games(): [boolean, string] {
-  if (isD3dmetalRuntimeReady()) return [true, 'D3DMetal listo']
+  if (isD3dmetalRuntimeReady() && isD3dmetalDx12Ready()) return [true, 'D3DMetal listo']
 
   for (const fn of [
     installD3dmetalFromAppBundle,
     installD3dmetalFromGptkApp
   ]) {
     const r = fn()
-    if (r[0]) return r
+    if (r[0] && isD3dmetalDx12Ready()) return r
   }
 
   for (const dmg of findGptkDmgFiles()) {
     const r = installD3dmetalFromGptkDmg(dmg)
-    if (r[0]) return r
+    if (r[0] && isD3dmetalDx12Ready()) return r
   }
 
+  if (isD3dmetalRuntimeReady()) {
+    return [
+      true,
+      'D3DMetal listo (sin DLLs DX12 individuales: algunos juegos seguirán en Wine builtin)'
+    ]
+  }
   return [
     false,
     'D3DMetal (GPTK) is missing. Kalimotxo installs it in the setup wizard from Apple\'s Game Porting Toolkit (via Homebrew if needed).'

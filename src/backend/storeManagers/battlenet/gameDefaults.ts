@@ -12,6 +12,7 @@ import {
 } from '../../compatibility/catalog'
 import { buildEnv, getActiveWineInstallation, getWineBinary } from '../../launcher/wineRunner'
 import { DXMT_NATIVE_DLLS, ensureDxmtForExe } from '../../wine/dxmt'
+import { ensureD3dmetalDx12ForExe } from '../../wine/d3dmetalDx12'
 import { BATTLENET_BOTTLE } from './constants'
 
 /**
@@ -56,6 +57,23 @@ export function applyDxmtToInstalledGames(
     const profile = getGameProfile(id)
     const exe = profile?.backend === 'dxmt' ? resolveGameExe(bottleName, id) : null
     if (exe && ensureDxmtForExe(getActiveWineInstallation(), exe, log)) done.push(id)
+  }
+  return done
+}
+
+/**
+ * Puts real D3DMetal (DX12) next to every installed game profiled for it
+ * (currently just Diablo II: Resurrected, DX12-only). See `d3dmetalDx12.ts`.
+ */
+export function applyD3dmetalDx12ToInstalledGames(
+  bottleName = BATTLENET_BOTTLE,
+  log?: (m: string) => void
+): string[] {
+  const done: string[] = []
+  for (const id of BLIZZARD_GAME_IDS) {
+    const profile = getGameProfile(id)
+    const exe = profile?.backend === 'd3dmetal-dx12' ? resolveGameExe(bottleName, id) : null
+    if (exe && ensureD3dmetalDx12ForExe(getActiveWineInstallation(), exe, log)) done.push(id)
   }
   return done
 }
