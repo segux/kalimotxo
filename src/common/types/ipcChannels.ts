@@ -17,6 +17,7 @@ export const IPC_INVOKE_CHANNELS = [
   'battleNetRepair',
   'battleNetRepairBottle',
   'battleNetLaunch',
+  'battleNetLaunchViaCrossOver',
   'battleNetUninstall',
   'battleNetCheckClient',
   'battleNetCancel',

@@ -105,6 +105,8 @@
     "repair": "Repair",
     "repairBottle": "Repair bottle (clean Wine)",
     "repairBottleHint": "Reconciles the prefix with the active Wine (Wine 11) without deleting the client. Use if the window doesn't appear after repeated attempts.",
+    "viaCrossOver": "Open via CrossOver",
+    "viaCrossOverHint": "Stopgap for Diablo II: Resurrected, whose DirectX 12 graphics don't yet work on Kalimotxo's own Wine. Opens Battle.net in an installed CrossOver's own bottle instead — separate login and separate D2R install from Kalimotxo's.",
     "uninstall": "Uninstall",
     "clientStatus": "Client status",
     "statusReady": "Ready to play",

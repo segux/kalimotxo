@@ -49,6 +49,7 @@ export interface AsyncIPCFunctions {
   battleNetRepair: () => Promise<OpResult>
   battleNetRepairBottle: () => Promise<OpResult>
   battleNetLaunch: () => Promise<OpResult>
+  battleNetLaunchViaCrossOver: () => Promise<OpResult>
   battleNetUninstall: () => Promise<OpResult>
   battleNetCheckClient: () => Promise<OpResult>
   battleNetCancel: () => Promise<OpResult>

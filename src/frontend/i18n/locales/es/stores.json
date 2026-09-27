@@ -105,6 +105,8 @@
     "repair": "Reparar",
     "repairBottle": "Reparar bottle (Wine limpio)",
     "repairBottleHint": "Reconcilia el prefix con el Wine activo (Wine 11) sin borrar el cliente. Útil si la ventana no aparece tras varias pruebas.",
+    "viaCrossOver": "Abrir con CrossOver",
+    "viaCrossOverHint": "Solución temporal para Diablo II: Resurrected, cuyos gráficos DirectX 12 aún no funcionan en el Wine propio de Kalimotxo. Abre Battle.net en el bottle de un CrossOver instalado: login e instalación de D2R separados de los de Kalimotxo.",
     "uninstall": "Desinstalar",
     "clientStatus": "Estado del cliente",
     "statusReady": "Listo para jugar",

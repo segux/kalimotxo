@@ -121,6 +121,11 @@ export function registerAllHandlers(): void {
     return play()
   })
 
+  addHandler('battleNetLaunchViaCrossOver', async () => {
+    const { openBattleNetViaCrossOver } = await import('../wine/crossoverBottle')
+    return openBattleNetViaCrossOver()
+  })
+
   addHandler('battleNetLaunchGame', async (_e, gameId: string) => launchGame(gameId))
 
   addHandler('battleNetUninstall', async () => uninstall())

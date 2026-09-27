@@ -260,6 +260,14 @@ export function BattleNetPanel() {
                   {t('battlenet.uninstall')}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void runAdvanced(() => window.api.battleNetLaunchViaCrossOver())}
+                title={t('battlenet.viaCrossOverHint')}
+              >
+                {t('battlenet.viaCrossOver')}
+              </Button>
             </div>
           </div>
         )}
