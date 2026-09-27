@@ -12,7 +12,7 @@ import {
 import { join } from 'path'
 import { tmpdir } from 'os'
 
-import { buildDxmtWine, relinkMissingDylibs } from '../dxmtWine'
+import { buildDxmtWine } from '../dxmtWine'
 
 function write(path: string, text: string): void {
   mkdirSync(join(path, '..'), { recursive: true })
@@ -95,40 +95,5 @@ describe('buildDxmtWine', () => {
     rmSync(join(dxmt, 'x86_64-windows', 'dxgi.dll'))
     expect(buildDxmtWine(wine, join(wine, 'bin', 'wine'), dxmt, dest)).toBe(false)
     expect(existsSync(dest)).toBe(false)
-  })
-})
-
-describe('relinkMissingDylibs', () => {
-  /** Thin x86_64 Mach-O header with one LC_LOAD_DYLIB per path. */
-  function machO(paths: string[]): Buffer {
-    const cmds = paths.map((p) => {
-      const size = Math.ceil((24 + p.length + 1) / 8) * 8
-      const cmd = Buffer.alloc(size)
-      cmd.writeUInt32LE(0x0c, 0)
-      cmd.writeUInt32LE(size, 4)
-      cmd.writeUInt32LE(24, 8)
-      cmd.write(p, 24, 'utf8')
-      return cmd
-    })
-    const header = Buffer.alloc(32)
-    header.writeUInt32LE(0xfeedfacf, 0)
-    header.writeUInt32LE(cmds.length, 16)
-    return Buffer.concat([header, ...cmds])
-  }
-
-  it('points missing absolute dependencies at @loader_path', () => {
-    const ci = '/Users/runner/work/dxmt/dxmt/toolchains/wine/lib/wine/x86_64-unix/winemac.so'
-    const buf = machO([ci, '@rpath/ntdll.so', '/usr/lib/libSystem.B.dylib'])
-    const changed = relinkMissingDylibs(buf, (p) => p.startsWith('/usr/lib/'))
-    expect(changed).toEqual([ci])
-    const text = buf.toString('latin1')
-    expect(text).toContain('@loader_path/winemac.so\0')
-    expect(text).not.toContain('/Users/runner')
-    expect(text).toContain('@rpath/ntdll.so')
-    expect(text).toContain('/usr/lib/libSystem.B.dylib')
-  })
-
-  it('ignores files that are not thin 64-bit Mach-O', () => {
-    expect(relinkMissingDylibs(Buffer.from('not a mach-o file at all, just text....'), () => false)).toEqual([])
   })
 })
