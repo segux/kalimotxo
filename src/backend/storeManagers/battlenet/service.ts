@@ -28,7 +28,7 @@ import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers
 import { ensureBattleNetWineRuntimeLibs, purgeBrokenWinetempSymlinks } from '../../wine/wineRuntimeLibs'
 import { stopAgentPortBridge } from './agentPortBridge'
 import { ensureAgentBridge } from './agentBridgeDaemon'
-import { applyBattleNetLaunchArgs, applyGameAppDefaults } from './gameDefaults'
+import { applyBattleNetLaunchArgs, applyDxmtToInstalledGames, applyGameAppDefaults } from './gameDefaults'
 import { startAgentSupervisor, stopAgentSupervisor } from './agentSupervisor'
 import {
   isAgentRunning,
@@ -668,6 +668,7 @@ export async function launch(): Promise<{ success: boolean; message: string }> {
     // started from Battle.net's Play button use the Kalimotxo game profile.
     applyBattleNetLaunchArgs(BATTLENET_BOTTLE, log)
     applyGameAppDefaults(BATTLENET_BOTTLE, log)
+    applyDxmtToInstalledGames(BATTLENET_BOTTLE, log)
 
     const prep = prepareBattleNetWineLaunch(logPath)
     if (!prep.ok) return { success: false, message: prep.message }

@@ -19,7 +19,7 @@ import { getBottlePath } from '../../bottle'
 import { prepareBattleNetWineLaunch } from '../../wine/prepareLaunch'
 import { resolveBattleNetWineInstallation } from '../../wine/compatibilityLayers'
 import { ensureBattleNetWineRuntimeLibs } from '../../wine/wineRuntimeLibs'
-import { ensureDxmtWine } from '../../wine/dxmtWine'
+import { ensureDxmtForExe } from '../../wine/dxmt'
 import { ensureAgentBridge } from './agentBridgeDaemon'
 import { resolveProfileDllOverrides } from './gameDefaults'
 import { markGameManaged, markPidManaged } from './gameWatcher'
@@ -248,21 +248,18 @@ export async function launchBlizzardGame(
     log('Graphics debug logging enabled (~/.kalimotxo/debug-graphics)')
   }
 
-  // DXMT only replaces Wine's d3d11/dxgi when it lives in Wine's own lib dir:
-  // run the game on the DXMT flavour of the active Wine (see dxmtWine.ts).
-  const dxmtWine = profile?.backend === 'dxmt' ? ensureDxmtWine(installation, log) : null
+  // DXMT next to the exe, loaded as native (see wine/dxmt.ts).
+  if (profile?.backend === 'dxmt') ensureDxmtForExe(installation, exe, log)
 
   const exeName = exe.split(/[/\\]/).pop() ?? 'game.exe'
   log(`Launching ${exeName} (${gameId}) with backend ${profile?.backend ?? 'default'}...`)
-  log(`Wine binary: ${dxmtWine?.bin ?? installation.bin}`)
   log(`Overrides: ${gameEnv.WINEDLLOVERRIDES ?? '(none)'}`)
   const proc = runExe(BATTLENET_BOTTLE, exe, {
     battleNetEnv: true,
     gameLaunch: true,
     logPath,
     env: gameEnv,
-    args: profile?.args,
-    wine: dxmtWine?.bin
+    args: profile?.args
   })
 
   // Prevent the watcher from killing this newly launched game:

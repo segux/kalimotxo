@@ -13,8 +13,8 @@ describe('buildLibraryGameEnv', () => {
     const env = buildLibraryGameEnv('Games', 'dxmt')
     expect(env.WINEPREFIX).toBe('/tmp/bottles/Games')
     expect(env.WINEMSYNC).toBe('1')
-    expect(env.WINEDLLOVERRIDES).toContain('d3d11=builtin')
-    expect(env.WINEDLLOVERRIDES).toContain('dxgi=builtin')
+    expect(env.WINEDLLOVERRIDES).toContain('d3d11=native')
+    expect(env.WINEDLLOVERRIDES).toContain('dxgi=native')
     // Battle.net-only: would break .NET, installers and in-game video.
     expect(env.WINEDLLOVERRIDES).not.toMatch(/mscoree|mshtml|winegstreamer|mf=/)
     expect(env.WINE_HEAP_ZERO_MEMORY).toBeUndefined()

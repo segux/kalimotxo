@@ -72,9 +72,17 @@ La receta está adaptada de [mikaelhug/Silo](https://github.com/mikaelhug/Silo) 
 ## DXMT y el Wine de Kalimotxo
 
 Wine busca sus DLL builtin primero en su propio `lib/wine` y solo después en `WINEDLLPATH`, y
-descarta las DLL builtin que encuentre en otro sitio (system32, carpeta del juego). Por eso DXMT
-en `WINEDLLPATH` no sustituía a `d3d11`/`dxgi`: D2R acababa en wined3d (Vulkan → MoltenVK) y se
-cerraba al entrar en partida (`MVKBufferView::getMTLTexture`). Los juegos con capa DXMT se lanzan
-con una copia del Wine activo hecha con enlaces duros (`runtime/wine-dxmt/<id>`, sin ocupar disco)
-que lleva las DLL de DXMT en su `lib/wine`; Battle.net y el resto de juegos siguen con el Wine
-original. Se regenera sola si cambia el Wine o DXMT. Ver `src/backend/wine/dxmtWine.ts`.
+cambia cualquier DLL builtin que encuentre en otro sitio (system32, carpeta del juego) por la suya.
+Por eso DXMT en `WINEDLLPATH` no sustituía a `d3d11`/`dxgi`: D2R acababa en wined3d (Vulkan →
+MoltenVK) y se cerraba al entrar en partida (`MVKBufferView::getMTLTexture`).
+
+Como los juegos de Battle.net se lanzan desde el propio cliente (botón Jugar), DXMT tiene que
+funcionar con el Wine y el entorno del cliente:
+
+- `winemetal.dll`/`winemetal.so` (el puente de DXMT a Metal) se añaden al `lib/wine` del Wine
+  activo. Wine no trae ningún archivo con ese nombre, así que no cambia nada para el resto.
+- `d3d11`, `dxgi` y `d3d10core` de DXMT se copian junto al `.exe` del juego sin la marca de DLL
+  builtin de Wine y se cargan como *native* solo para ese ejecutable
+  (`AppDefaults\<exe>\DllOverrides`).
+
+Se aplica al abrir Battle.net y en cada lanzamiento desde Kalimotxo. Ver `src/backend/wine/dxmt.ts`.

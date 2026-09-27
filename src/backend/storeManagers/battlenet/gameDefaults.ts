@@ -10,7 +10,8 @@ import {
   resolveGameExe,
   type GameProfile
 } from '../../compatibility/catalog'
-import { buildEnv, getWineBinary } from '../../launcher/wineRunner'
+import { buildEnv, getActiveWineInstallation, getWineBinary } from '../../launcher/wineRunner'
+import { DXMT_NATIVE_DLLS, ensureDxmtForExe } from '../../wine/dxmt'
 import { BATTLENET_BOTTLE } from './constants'
 
 /**
@@ -27,17 +28,36 @@ const APPDEFAULTS_MARKER = '.kalimotxo-game-appdefaults'
 const DXGI_DLLS = ['d3d11', 'd3d12', 'dxgi', 'd3d10core']
 
 /**
- * Profile DLL overrides as Wine modes. For DXMT/D3DMetal the D3D/DXGI DLLs must
- * be builtin so Wine loads them from WINEDLLPATH instead of the stubs in system32.
+ * Profile DLL overrides as Wine modes. DXMT's D3D/DXGI DLLs live next to the
+ * game's exe and must load as native (see wine/dxmt.ts); D3DMetal's come from
+ * CrossOver's builtins.
  */
 export function resolveProfileDllOverrides(profile: GameProfile): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [dll, mode] of Object.entries(profile.dll_overrides)) {
-    const forceBuiltin =
-      (profile.backend === 'd3dmetal' || profile.backend === 'dxmt') && DXGI_DLLS.includes(dll)
-    out[dll] = forceBuiltin ? 'builtin' : mode
+    out[dll] = profile.backend === 'd3dmetal' && DXGI_DLLS.includes(dll) ? 'builtin' : mode
+  }
+  if (profile.backend === 'dxmt') {
+    for (const dll of DXMT_NATIVE_DLLS) out[dll] = 'native'
   }
   return out
+}
+
+/**
+ * Puts DXMT next to every installed DXMT game, so it is used whoever starts the
+ * game (Battle.net's Play button included). Returns the games prepared.
+ */
+export function applyDxmtToInstalledGames(
+  bottleName = BATTLENET_BOTTLE,
+  log?: (m: string) => void
+): string[] {
+  const done: string[] = []
+  for (const id of BLIZZARD_GAME_IDS) {
+    const profile = getGameProfile(id)
+    const exe = profile?.backend === 'dxmt' ? resolveGameExe(bottleName, id) : null
+    if (exe && ensureDxmtForExe(getActiveWineInstallation(), exe, log)) done.push(id)
+  }
+  return done
 }
 
 function regEscape(value: string): string {

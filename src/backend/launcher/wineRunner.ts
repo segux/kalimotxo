@@ -110,11 +110,9 @@ export function runExe(
     logPath?: string
     args?: string[]
     env?: NodeJS.ProcessEnv
-    /** Wine binary to run instead of the active one (e.g. its DXMT flavour). */
-    wine?: string
   }
 ): ChildProcess {
-  const wine = options?.wine ?? getWineBinary(bottleName)
+  const wine = getWineBinary(bottleName)
   const env = options?.env ?? (options?.battleNetEnv
     ? buildBattleNetLaunchEnv(bottleName, { gameLaunch: options.gameLaunch })
     : buildEnv(bottleName))

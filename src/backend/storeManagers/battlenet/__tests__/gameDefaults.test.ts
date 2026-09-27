@@ -70,7 +70,7 @@ afterEach(() => {
 })
 
 describe('buildGameAppDefaultsReg', () => {
-  it('writes per-exe overrides, forcing D3D builtin for DXMT', () => {
+  it('writes per-exe overrides, loading DXMT native from the game folder', () => {
     const reg = buildGameAppDefaultsReg([
       {
         exe: 'Program Files (x86)/Diablo II Resurrected/D2R.exe',
@@ -79,13 +79,15 @@ describe('buildGameAppDefaultsReg', () => {
       } as unknown as GameProfile
     ])
     expect(reg).toContain('[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\D2R.exe\\DllOverrides]')
-    expect(reg).toContain('"d3d11"="builtin"')
+    expect(reg).toContain('"d3d11"="native"')
+    expect(reg).toContain('"dxgi"="native"')
+    expect(reg).toContain('"d3d10core"="native"')
     expect(reg).toContain('"winegstreamer"=""')
     expect(reg).toContain('"crypt32"="builtin"')
   })
 
   it('returns nothing when no profile has overrides', () => {
-    expect(buildGameAppDefaultsReg([{ exe: 'a.exe', backend: 'dxmt', dll_overrides: {} } as unknown as GameProfile])).toBe('')
+    expect(buildGameAppDefaultsReg([{ exe: 'a.exe', backend: 'wined3d', dll_overrides: {} } as unknown as GameProfile])).toBe('')
   })
 })
 

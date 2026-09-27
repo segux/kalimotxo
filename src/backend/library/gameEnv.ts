@@ -5,12 +5,12 @@ import { applyMacGameStack, mergeDllOverrides, setupWineEnvVars } from '../wine/
 import type { LibraryGraphicsBackend } from '../../common/types/library'
 
 /**
- * DLL overrides per graphics layer. DXMT and D3DMetal replace Wine's D3D/DXGI
- * builtins, so those must load as builtin (from WINEDLLPATH / the D3DMetal
- * loader) rather than any native copy a game or installer dropped.
+ * DLL overrides per graphics layer. DXMT's D3D/DXGI DLLs sit next to the
+ * game's exe and load as native (see wine/dxmt.ts); D3DMetal's are CrossOver's
+ * builtins, whatever native copy a game or installer dropped.
  */
 const BACKEND_OVERRIDES: Record<LibraryGraphicsBackend, string[]> = {
-  dxmt: ['d3d11=builtin', 'dxgi=builtin', 'd3d10core=builtin'],
+  dxmt: ['d3d11=native', 'dxgi=native', 'd3d10core=native'],
   d3dmetal: ['d3d11=builtin', 'd3d12=builtin', 'dxgi=builtin'],
   wined3d: [],
   'wined3d-gl': []
