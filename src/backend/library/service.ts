@@ -40,7 +40,12 @@ import {
   rankExeCandidates,
   snapshotExes
 } from './exeScan'
-import { applyWined3dGlAppDefaults, buildInstallerEnv, buildLibraryGameEnv } from './gameEnv'
+import {
+  applyLegacyEngineAppDefaults,
+  applyWined3dGlAppDefaults,
+  buildInstallerEnv,
+  buildLibraryGameEnv
+} from './gameEnv'
 import {
   addLibraryGameRecord,
   getLibraryGame,
@@ -306,6 +311,8 @@ export async function launchGame(id: string): Promise<OpResult> {
   // PD2Launcher.exe -> Game.exe) does not pass on WINE_D3D_CONFIG: force the
   // OpenGL renderer via the per-exe registry instead (see gameEnv.ts).
   if (game.backend === 'wined3d-gl') applyWined3dGlAppDefaults(game.bottle, game.exe, log)
+  // Diablo II 1.13-era engine (Project Diablo 2 and similar mods): see gameEnv.ts.
+  applyLegacyEngineAppDefaults(game.bottle, game.exe, log)
   log(`Bottle: ${game.bottle} | backend: ${game.backend} | args: ${game.args.join(' ')}`)
   log(`Overrides: ${env.WINEDLLOVERRIDES ?? ''}`)
   const proc = runExe(game.bottle, game.exe, {

@@ -94,22 +94,75 @@ export function applyWined3dGlAppDefaults(
   }
   if (!names.length) return false
 
-  const lines = ['REGEDIT4', '']
+  const lines: string[] = []
   for (const name of names) {
     lines.push(`[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\${name}\\Direct3D]`, '"renderer"="gl"', '')
   }
-  const regFile = join(getBottlePath(bottle), 'drive_c', 'kalimotxo-wined3d-gl.reg')
-  writeFileSync(regFile, lines.join('\r\n'))
+  if (!importReg(bottle, lines, 'kalimotxo-wined3d-gl.reg', log)) return false
+  log?.(`OpenGL renderer forced for: ${names.join(', ')}`)
+  return true
+}
+
+/** Diablo II engine executables (1.13-era split DLLs: Fog, Storm, D2*.dll). */
+const LEGACY_D2_EXES = ['Game.exe', 'Diablo II.exe']
+
+/**
+ * Diablo II's 1.13-era engine (used by mods such as Project Diablo 2) runs
+ * a sanity check on every Windows critical section it creates: its
+ * DebugInfo must be a real pointer below 2 GB. Since Windows 8, Wine (like
+ * Windows for InitializeCriticalSectionEx) leaves DebugInfo as
+ * 0xFFFFFFFF, so Fog.dll takes its fatal-error path before its own log is
+ * up, and that path calls itself until the stack overflows ("Unhandled
+ * stack overflow" in Fog.dll right at startup, identical on CrossOver).
+ * Wine still allocates real DebugInfo when the reported version is older
+ * than Windows 8, so these executables alone are presented as Windows XP
+ * (per-exe AppDefaults) — the game's launcher and everything else in the
+ * bottle keep the bottle's version (PD2Launcher needs Windows 7+).
+ */
+export function applyLegacyEngineAppDefaults(
+  bottle: string,
+  exe: string,
+  log?: (m: string) => void
+): boolean {
+  const dir = dirname(exe)
+  let files: string[]
   try {
-    const r = spawnSync(getWineBinary(bottle), ['regedit', '/S', 'C:\\kalimotxo-wined3d-gl.reg'], {
+    files = readdirSync(dir)
+  } catch {
+    return false
+  }
+  const lower = new Set(files.map((f) => f.toLowerCase()))
+  if (!lower.has('fog.dll')) return false
+  const exes = LEGACY_D2_EXES.filter((e) => lower.has(e.toLowerCase()))
+  if (!exes.length) return false
+
+  const lines: string[] = []
+  for (const name of exes) {
+    lines.push(`[HKEY_CURRENT_USER\\Software\\Wine\\AppDefaults\\${name}]`, '"Version"="winxp"', '')
+  }
+  if (!importReg(bottle, lines, 'kalimotxo-legacy-engine.reg', log)) return false
+  log?.(`Diablo II engine: Windows XP version for ${exes.join(', ')}`)
+  return true
+}
+
+/** Imports REGEDIT4 `lines` into the bottle with one silent regedit. */
+function importReg(
+  bottle: string,
+  lines: string[],
+  fileName: string,
+  log?: (m: string) => void
+): boolean {
+  const regFile = join(getBottlePath(bottle), 'drive_c', fileName)
+  writeFileSync(regFile, ['REGEDIT4', '', ...lines].join('\r\n'))
+  try {
+    const r = spawnSync(getWineBinary(bottle), ['regedit', '/S', `C:\\${fileName}`], {
       env: buildEnv(bottle),
       timeout: 30_000
     })
     if (r.status !== 0) {
-      log?.(`OpenGL AppDefaults: regedit failed (${r.status ?? r.signal})`)
+      log?.(`${fileName}: regedit failed (${r.status ?? r.signal})`)
       return false
     }
-    log?.(`OpenGL renderer forced for: ${names.join(', ')}`)
     return true
   } finally {
     rmSync(regFile, { force: true })
